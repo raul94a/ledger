@@ -25,3 +25,40 @@ type ClientEntity struct {
     CreatedAt     time.Time      `db:"created_at" json:"created_at"`
     UpdatedAt     time.Time      `db:"updated_at" json:"updated_at"`
 }
+
+func ScanClientEntity(r *sql.Rows, client *ClientEntity) error {
+    return r.Scan(
+			&client.ID,
+			&client.Name,
+			&client.Surname1,
+			&client.Surname2,
+			&client.Email,
+			&client.Identification,
+			&client.Nationality,
+			&client.DateOfBirth,
+			&client.Sex,
+			&client.Address,
+			&client.City,
+			&client.Province,
+			&client.State,
+			&client.ZipCode,
+			&client.Telephone,
+			&client.CreatedAt,
+			&client.UpdatedAt,
+		)
+}
+
+func FetchClientEntities(r *sql.Rows) ([]ClientEntity,error) {
+    var clients []ClientEntity
+    defer r.Close()
+    for r.Next(){
+        var client ClientEntity
+        er := ScanClientEntity(r,&client)
+		if er != nil {
+			return nil,er
+		}
+		clients = append(clients, client)
+    }
+
+    return clients,nil
+}
