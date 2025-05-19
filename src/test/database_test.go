@@ -3,9 +3,10 @@ package database_test
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	
 	"log"
 	cliententity "src/domain/client"
+	insert_entities "src/test/utils"
 	"src/test/utils"
 	"testing"
 	"time"
@@ -47,38 +48,7 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
-func InsertClient(ctx context.Context, db *sql.DB, client *cliententity.ClientEntity) error {
-	query := `
-        INSERT INTO clients (
-            name, surname1, surname2, email, identification, nationality, 
-            date_of_birth, sex, address, city, province, state, 
-            zip_code, telephone
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-        RETURNING id, created_at, updated_at`
 
-	// Execute the query and scan the returned values into the client struct
-	err := db.QueryRowContext(ctx, query,
-		client.Name,
-		client.Surname1,
-		client.Surname2,
-		client.Email,
-		client.Identification,
-		client.Nationality,
-		client.DateOfBirth,
-		client.Sex,
-		client.Address,
-		client.City,
-		client.Province,
-		client.State,
-		client.ZipCode,
-		client.Telephone,
-	).Scan(&client.ID, &client.CreatedAt, &client.UpdatedAt)
-
-	if err != nil {
-		return fmt.Errorf("failed to insert client: %w", err)
-	}
-	return nil
-}
 
 // TestDatabaseConnection verifies the database connection and performs a simple query.
 func TestDatabaseConnection(t *testing.T) {
@@ -126,10 +96,10 @@ func TestDatabaseConnection(t *testing.T) {
 	var exampleClient = utils.CreateClientTest(1, "Jhon", "jhon@test.es")
     var exampleClient2 = utils.CreateClientTest(2,"Joe", "joe@insertion.com")
 	// Insert the client
-	err = InsertClient(ctx, db, &exampleClient)
+	err = insert_entities.InsertClient(ctx, db, &exampleClient)
 
 	assert.NoError(t, err, "failed to insert client")
-    err = InsertClient(ctx,db, &exampleClient2)
+    err = insert_entities.InsertClient(ctx,db, &exampleClient2)
     assert.NoError(t, err, "failed to insert client 2")
 
 	// Verify the insertion
