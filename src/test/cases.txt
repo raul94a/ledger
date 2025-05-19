@@ -1,0 +1,22 @@
+
+1. Inserción de nuevo cliente
+2. Nuevo cliente abre cuenta
+    Cuenta pertenece a cliente
+    Cuenta tiene un balance de 0
+3. Cliente quiere ingresar N en cuenta
+    Crear transacción de N créditos, tipo ingreso
+    Crear ledgerEntry de cantidad N de tipo credit
+4. Inserción de cliente 2
+5. Nuevo cliente2 abre cuenta2
+    Cuenta2 pertenece a cliente2
+    Cuenta2 tiene un balance de 0
+6. Cliente2 quiere ingresar N en cuenta2
+    Crear transacción de N créditos, tipo ingreso
+    Crear ledgerEntry de cantidad N de tipo credit
+
+
+7. Cliente 1 transfiere M < N fondos a Cliente 2
+    a- Creación de transacción de tipo transferencia para Cliente 1
+    b- Creación de ledgerEntry de tipo debito para Cliente 1
+    c- Creación de ledgerEntry de tipo Credito para cliente 2
+    Los pasos a, b, c se refieren al concepo de transaccion 
