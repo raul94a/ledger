@@ -36,19 +36,18 @@ func CreateClientTest(ID int, name string, email string) cliententity.ClientEnti
 func CreateAccount(clientId int) accountentity.AccountEntity {
 	return accountentity.AccountEntity{
 		ClientID:      clientId,
-		AccountNumber: uuid.New().String(), // Random UUID
+		AccountNumber: uuid.New().String()[:32], // Random UUID
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
 	}
 }
 
-func CreateTransaction(accountID int, toAccountID int, amount float64, typ string) transaction_entity.TransactionEntity {
-	toAccountIDPtr := &toAccountID // Pointer for nullable field
+func CreateTransaction(accountID int, toAccountID sql.NullInt32, amount float64, typ string) transaction_entity.TransactionEntity {
 	return transaction_entity.TransactionEntity{
 		AccountID:   accountID,
 		Type:        typ,
 		Amount:      amount,
-		ToAccountID: toAccountIDPtr,
+		ToAccountID: toAccountID,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}

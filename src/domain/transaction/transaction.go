@@ -11,7 +11,7 @@ type TransactionEntity struct {
     AccountID    int       `json:"account_id" db:"account_id"`
     Type         string    `json:"type" db:"type"`
     Amount       float64   `json:"amount" db:"amount"`
-    ToAccountID  *int      `json:"to_account_id" db:"to_account_id"` // Nullable
+    ToAccountID  sql.NullInt32      `json:"to_account_id" db:"to_account_id"` // Nullable
     CreatedAt    time.Time `json:"created_at" db:"created_at"`
     UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }
