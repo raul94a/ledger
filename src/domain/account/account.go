@@ -39,3 +39,4 @@ func FetchAccountEntities(r *sql.Rows) ([]AccountEntity,error) {
 
     return accounts,nil
 }
+

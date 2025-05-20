@@ -1,6 +1,7 @@
 package ledgerentity
 
 import (
+	transaction_entity "src/domain/transaction"
 	"database/sql"
 	"time"
 )
@@ -14,6 +15,13 @@ type LedgerEntryEntity struct {
 	Amount        float64   `json:"amount" db:"amount"`
 	CreatedAt     time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at" db:"updated_at"`
+}
+
+type LedgerTransaction struct {
+	Transaction transaction_entity.TransactionEntity
+	AccountID int
+	TransactionType string // CREDIT / DEBIT
+
 }
 
 func ScanLedgerEntryEntity(r *sql.Rows, ledgerEntry *LedgerEntryEntity) error {
