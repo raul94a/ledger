@@ -5,7 +5,10 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
-	cliententity "src/domain/client"
+	cliententity "src/domain/client"	
+	errors "src/errors"
+
+
 )
 
 type ClientRepository interface {
@@ -55,7 +58,7 @@ func (r *clientRepository) FetchClient(ctx context.Context, identification strin
 		&client.UpdatedAt)
 	if err == sql.ErrNoRows {
 		r.logger.Error("No client found " + identification)
-		return cliententity.ClientEntity{}, &ErrEntityNotFound{Identifier: identification}
+		return cliententity.ClientEntity{}, &errors.ErrEntityNotFound{Identifier: identification}
 
 	}
 	if err != nil {
@@ -91,7 +94,7 @@ func (r *clientRepository) FetchClientById(ctx context.Context, ID int) (cliente
 		&client.UpdatedAt)
 	if err == sql.ErrNoRows {
 		r.logger.Error("No client found " + fmt.Sprint(ID))
-		return cliententity.ClientEntity{}, &ErrEntityNotFound{Identifier: fmt.Sprint(ID)}
+		return cliententity.ClientEntity{}, &errors.ErrEntityNotFound{Identifier: fmt.Sprint(ID)}
 
 	}
 	if err != nil {

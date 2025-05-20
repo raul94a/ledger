@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	accountentity "src/domain/account"
+	errors "src/errors"
+
 )
 
 type AccountRepository interface {
@@ -66,7 +68,7 @@ func (r *accountRepository) FetchAccountsByClient(ctx context.Context, clientID 
 
 	if len(accounts) == 0 {
 		r.logger.Warn("No accounts found for client: " + fmt.Sprint(clientID))
-		return nil, &ErrEntityNotFound{Identifier: fmt.Sprint(clientID)}
+		return nil, &errors.ErrEntityNotFound{Identifier: fmt.Sprint(clientID)}
 	}
 
 	return accounts, nil
@@ -87,7 +89,7 @@ func (r *accountRepository) FetchAccountById(ctx context.Context, ID int) (accou
 	)
 	if err == sql.ErrNoRows {
 		r.logger.Error("No account found " + fmt.Sprint(ID))
-		return accountentity.AccountEntity{}, &ErrEntityNotFound{Identifier: fmt.Sprint(ID)}
+		return accountentity.AccountEntity{}, &errors.ErrEntityNotFound{Identifier: fmt.Sprint(ID)}
 
 	}
 	if err != nil {

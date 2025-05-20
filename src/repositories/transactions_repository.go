@@ -7,6 +7,9 @@ import (
 	"log/slog"
 	ledgerentity "src/domain/ledger"
 	transaction_entity "src/domain/transaction"
+	errors "src/errors"
+	validators "src/validators"
+
 	"strings"
 )
 
@@ -54,7 +57,7 @@ func (r *transactionRepository) InsertTransaction(ctx context.Context, tx *sql.T
 	if err != nil {
 		r.logger.Error("Error occurred while inserting transaction: %s", err.Error())
 		r.logger.Error("Account id: %s, amount: %v, type: %s", transaction.AccountID, transaction.Amount, transaction.Type)
-		return &ErrTransactionInsertFailed{Message: "", Reason: err}
+		return &errors.ErrTransactionInsertFailed{Message: "", Reason: err}
 	}
 	return nil
 }
@@ -75,9 +78,6 @@ func (r *transactionRepository) InsertLedgerEntry(ctx context.Context, tx *sql.T
 	)
 
 	if err != nil {
-		r.logger.Error("Error occurred in Txn %d while inserting transaction_ledger (from): %s ", transaction.ID, err.Error())
-
-		r.logger.Error("Error occurred while inserting ledger_entry: %s ", err.Error())
 		isFromTransaction := ledgerTransaction.Transaction.AccountID == ledgerTransaction.AccountID
 		origin := ""
 		if isFromTransaction {
@@ -89,12 +89,12 @@ func (r *transactionRepository) InsertLedgerEntry(ctx context.Context, tx *sql.T
 		r.logger.Error(errString)
 		errString = fmt.Sprintf("Account id: %d, amount: %v, type: %s", transaction.AccountID, transaction.Amount, transaction.Type)
 		r.logger.Error(errString)
-		return &ErrLedgerEntryInsertFailed{Message: origin, Reason: err}
+		return &errors.ErrLedgerEntryInsertFailed{Message: origin, Reason: err}
 	}
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
 
-		return &ErrNoRowsAffected{Message: "Problem during inserting ledgerEntry"}
+		return &errors.ErrNoRowsAffected{Message: "Problem during inserting ledgerEntry"}
 	}
 	err = r.updateAccountBalance(ctx, tx, *ledgerTransaction)
 	if err != nil {
@@ -102,6 +102,17 @@ func (r *transactionRepository) InsertLedgerEntry(ctx context.Context, tx *sql.T
 	}
 	return nil
 }
+
+/**
+* Database transaction to move funds: ADD, WITHDRAWAL OR TRANSFER
+* 1. Initialize database transaction (Tx)
+* 2. Check balances if TransactionType is WITHDRAWAL OR TRANSFER
+* 3. Insert the transaction —Money exchange— into the database
+* 4. Insert the LedgerEntry and update the balance for the source account
+* 5. Insert the LedgerEntry and update the balance of the destination account
+*
+*
+ */
 
 func (r *transactionRepository) InsertTransactionLedgerTx(ctx context.Context, transaction *transaction_entity.TransactionEntity) error {
 	tx, txErr := r.db.BeginTx(ctx, &sql.TxOptions{
@@ -114,47 +125,41 @@ func (r *transactionRepository) InsertTransactionLedgerTx(ctx context.Context, t
 		return txErr
 	}
 
-	err := r.InsertTransaction(ctx, tx, transaction)
+	// we always starts with the account triggering the transaction
+	ledgerType := ""
+
+	balance, err := r.FetchAccountBalance(ctx, tx, transaction.AccountID)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = validators.ValidateTransactionBalance(*transaction, *balance, r.logger)
 
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	// we always starts with the account triggering the transaction
-	ledgerType := ""
-	transactionType := strings.ToUpper(transaction.Type)
+	err = r.InsertTransaction(ctx, tx, transaction)
 
-	if transactionType != "ADD" {
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if strings.ToUpper(transaction.Type) != "ADD" {
 		ledgerType = "DEBIT"
 	} else {
 		ledgerType = "CREDIT"
 	}
+
 	transactionLedger := ledgerentity.LedgerTransaction{
 		Transaction: *transaction,
 		LedgerType:  ledgerType,
 		AccountID:   transaction.AccountID,
 	}
-	// IF THE USER IS GONNA MAKE A TRANSFER OR A WITHDRAWAL WE HAVE TO CHECK THE AMOUNT OF MONEY AVAILABLE
-	if transactionType == "TRANSFER" || transactionType == "WITHDRAWAL" {
-		balance, err := r.FetchAccountBalance(ctx, tx, transaction.AccountID)
-		if err != nil {
-			return err
-		}
-		if *balance < transaction.Amount {
-			errStr := fmt.Sprintf(
-				"Not enough funds. Account %d has %v money. Tried to %s %v units",
-				transaction.AccountID,
-				*balance,
-				transactionType,
-				transaction.Amount,
-			)
-			r.logger.Error(errStr)
-			tx.Rollback()
-			return &ErrNotEnoughFunds{Message: errStr}
-		}
 
-	}
 	err = r.InsertLedgerEntry(ctx, tx, &transactionLedger)
 	if err != nil {
 		tx.Rollback()
