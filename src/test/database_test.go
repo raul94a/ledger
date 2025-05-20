@@ -7,8 +7,8 @@ import (
 
 	"log"
 	cliententity "src/domain/client"
-	"src/test/utils"
 	insert_entities "src/test/utils"
+	"src/test/utils"
 	"testing"
 	"time"
 
