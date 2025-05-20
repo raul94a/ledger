@@ -48,6 +48,12 @@ CREATE TABLE IF NOT EXISTS  ledger_entries (
 
 );
 
+CREATE TABLE IF NOT EXISTS account_balances (
+    id SERIAL PRIMARY KEY,
+    account_id INTEGER REFERENCES accounts(id),
+    balance DECIMAL(15,2)
+);
+
 CREATE  MATERIALIZED VIEW IF NOT EXISTS account_balances_mv AS
 SELECT 
     account_id,
