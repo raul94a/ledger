@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	ledgerentity "src/domain/ledger"
 	transaction_entity "src/domain/transaction"
+	"strings"
 )
 
 type TransactionRepository interface {
@@ -69,7 +70,7 @@ func (r *transactionRepository) InsertLedgerEntry(ctx context.Context, tx *sql.T
 	result, err := tx.ExecContext(ctx, query,
 		transaction.ID,
 		ledgerTransaction.AccountID,
-		ledgerTransaction.TransactionType,
+		ledgerTransaction.LedgerType,
 		transaction.Amount,
 	)
 
@@ -121,16 +122,38 @@ func (r *transactionRepository) InsertTransactionLedgerTx(ctx context.Context, t
 	}
 
 	// we always starts with the account triggering the transaction
-	transactionType := ""
-	if transaction.Type != "ADD" {
-		transactionType = "DEBIT"
+	ledgerType := ""
+	transactionType := strings.ToUpper(transaction.Type)
+
+	if transactionType != "ADD" {
+		ledgerType = "DEBIT"
 	} else {
-		transactionType = "CREDIT"
+		ledgerType = "CREDIT"
 	}
 	transactionLedger := ledgerentity.LedgerTransaction{
-		Transaction:     *transaction,
-		TransactionType: transactionType,
-		AccountID:       transaction.AccountID,
+		Transaction: *transaction,
+		LedgerType:  ledgerType,
+		AccountID:   transaction.AccountID,
+	}
+	// IF THE USER IS GONNA MAKE A TRANSFER OR A WITHDRAWAL WE HAVE TO CHECK THE AMOUNT OF MONEY AVAILABLE
+	if transactionType == "TRANSFER" || transactionType == "WITHDRAWAL" {
+		balance, err := r.FetchAccountBalance(ctx, tx, transaction.AccountID)
+		if err != nil {
+			return err
+		}
+		if *balance < transaction.Amount {
+			errStr := fmt.Sprintf(
+				"Not enough funds. Account %d has %v money. Tried to %s %v units",
+				transaction.AccountID,
+				*balance,
+				transactionType,
+				transaction.Amount,
+			)
+			r.logger.Error(errStr)
+			tx.Rollback()
+			return &ErrNotEnoughFunds{Message: errStr}
+		}
+
 	}
 	err = r.InsertLedgerEntry(ctx, tx, &transactionLedger)
 	if err != nil {
@@ -148,16 +171,15 @@ func (r *transactionRepository) InsertTransactionLedgerTx(ctx context.Context, t
 		tx.Commit()
 		return nil
 	}
-	// If there's a ToAccountId, another ledger entry has to be inserted
-	transactionLedger.AccountID = int(transaction.ToAccountID.Int32)
+	// If there's a valid ToAccountId, another ledger entry has to be inserted
 
-	if transactionType == "CREDIT" {
-		transactionType = "DEBIT"
+	if ledgerType == "CREDIT" {
+		ledgerType = "DEBIT"
 	} else {
-		transactionType = "CREDIT"
+		ledgerType = "CREDIT"
 	}
-
-	transactionLedger.TransactionType = transactionType
+	transactionLedger.AccountID = int(transaction.ToAccountID.Int32)
+	transactionLedger.LedgerType = ledgerType
 
 	err = r.InsertLedgerEntry(ctx, tx, &transactionLedger)
 	if err != nil {
@@ -175,8 +197,8 @@ func (r *transactionRepository) updateAccountBalance(
 	ledgerTransaction ledgerentity.LedgerTransaction,
 ) error {
 	query := ""
-	mustAdd := ledgerTransaction.TransactionType == "CREDIT"
-	infoStr := fmt.Sprint("Must add credit to ledger: %v",mustAdd)
+	mustAdd := ledgerTransaction.LedgerType == "CREDIT"
+	infoStr := fmt.Sprint("Must add credit to ledger: %v", mustAdd)
 	r.logger.Info(infoStr)
 	if mustAdd {
 		query = `UPDATE account_balances SET balance = balance + $1 where account_id = $2`
@@ -189,7 +211,7 @@ func (r *transactionRepository) updateAccountBalance(
 	if err != nil {
 		errStr := fmt.Sprintf(
 			"Error occurred in Txn while updating account balance. ACTION: %s, AMOUNT: %f, ACCOUNT_ID: %d",
-			ledgerTransaction.TransactionType,
+			ledgerTransaction.LedgerType,
 			ledgerTransaction.Transaction.Amount,
 			ledgerTransaction.AccountID,
 		)

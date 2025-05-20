@@ -2,6 +2,11 @@ package repositories
 
 import "fmt"
 
+
+type ErrNotEnoughFunds struct {
+    Message string
+}
+
 type ErrEntityNotFound struct {
     Identifier any
 }
@@ -47,4 +52,8 @@ func (e *ErrNoRowsAffected) Error() string {
 
 func (e *ErrNoRowsAffected) Unwrap() error {
     return e.Reason
+}
+
+func (e *ErrNotEnoughFunds) Error() string {
+    return fmt.Sprintf(e.Message)
 }
