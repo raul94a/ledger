@@ -9,7 +9,7 @@ import (
 type TransactionEntity struct {
     ID           int       `json:"id" db:"id"`
     AccountID    int       `json:"account_id" db:"account_id"`
-    Type         string    `json:"type" db:"type"`
+    Type         string    `json:"type" db:"type"`   // ADD, WITHDRAWAL, TRANSFER
     Amount       float64   `json:"amount" db:"amount"`
     ToAccountID  sql.NullInt32      `json:"to_account_id" db:"to_account_id"` // Nullable
     CreatedAt    time.Time `json:"created_at" db:"created_at"`

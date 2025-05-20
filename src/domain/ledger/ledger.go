@@ -1,8 +1,8 @@
 package ledgerentity
 
 import (
-	transaction_entity "src/domain/transaction"
 	"database/sql"
+	transaction_entity "src/domain/transaction"
 	"time"
 )
 
@@ -19,8 +19,8 @@ type LedgerEntryEntity struct {
 
 type LedgerTransaction struct {
 	Transaction transaction_entity.TransactionEntity
-	AccountID int
-	TransactionType string // CREDIT / DEBIT
+	AccountID   int
+	LedgerType  string // CREDIT / DEBIT
 
 }
 
