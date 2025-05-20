@@ -4,10 +4,11 @@ import (
 	"context"
 	"database/sql"
 	
+
 	"log"
 	cliententity "src/domain/client"
-	insert_entities "src/test/utils"
 	"src/test/utils"
+	insert_entities "src/test/utils"
 	"testing"
 	"time"
 
@@ -133,3 +134,5 @@ func TestDatabaseConnection(t *testing.T) {
 	assert.Equal(t, len(clients), 2)
 
 }
+
+
