@@ -1,0 +1,137 @@
+package repositories
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"log/slog"
+	cliententity "src/domain/client"
+)
+
+type ClientRepository interface {
+	FetchClientById(ctx context.Context, ID int) (cliententity.ClientEntity, error)
+	FetchClient(ctx context.Context, identification string) (cliententity.ClientEntity, error)
+	InsertClient(ctx context.Context, client *cliententity.ClientEntity) error
+}
+
+type clientRepository struct {
+	db     *sql.DB
+	logger *slog.Logger
+}
+
+func NewClientRepository(db *sql.DB, logger *slog.Logger) ClientRepository {
+	if db == nil {
+		panic("db cannot be nil")
+	}
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return &clientRepository{db: db, logger: logger}
+}
+
+
+func (r *clientRepository) FetchClient(ctx context.Context, identification string) (cliententity.ClientEntity, error) {
+	query := `
+	 SELECT * FROM clients where identification = $1
+	`
+	var client cliententity.ClientEntity = cliententity.ClientEntity{}
+	sqlRow := r.db.QueryRowContext(ctx, query, identification)
+	err := sqlRow.Scan(&client.ID,
+		&client.Name,
+		&client.Surname1,
+		&client.Surname2,
+		&client.Email,
+		&client.Identification,
+		&client.Nationality,
+		&client.DateOfBirth,
+		&client.Sex,
+		&client.Address,
+		&client.City,
+		&client.Province,
+		&client.State,
+		&client.ZipCode,
+		&client.Telephone,
+		&client.CreatedAt,
+		&client.UpdatedAt)
+	if err == sql.ErrNoRows {
+		r.logger.Error("No client found " + identification)
+		return cliententity.ClientEntity{}, &ErrEntityNotFound{Identifier: identification}
+
+	}
+	if err != nil {
+		r.logger.Error("Error occurred: " + err.Error())
+
+		return cliententity.ClientEntity{}, err
+	}
+	return client, nil
+}
+
+func (r *clientRepository) FetchClientById(ctx context.Context, ID int) (cliententity.ClientEntity, error) {
+	query := `
+	 SELECT * FROM clients where id = $1
+	`
+	var client cliententity.ClientEntity = cliententity.ClientEntity{}
+	sqlRow := r.db.QueryRowContext(ctx, query, ID)
+	err := sqlRow.Scan(&client.ID,
+		&client.Name,
+		&client.Surname1,
+		&client.Surname2,
+		&client.Email,
+		&client.Identification,
+		&client.Nationality,
+		&client.DateOfBirth,
+		&client.Sex,
+		&client.Address,
+		&client.City,
+		&client.Province,
+		&client.State,
+		&client.ZipCode,
+		&client.Telephone,
+		&client.CreatedAt,
+		&client.UpdatedAt)
+	if err == sql.ErrNoRows {
+		r.logger.Error("No client found " + fmt.Sprint(ID))
+		return cliententity.ClientEntity{}, &ErrEntityNotFound{Identifier: fmt.Sprint(ID)}
+
+	}
+	if err != nil {
+		r.logger.Error("Error occurred: " + err.Error())
+		return cliententity.ClientEntity{}, err
+	}
+	return client, nil
+}
+
+func (r *clientRepository) InsertClient(ctx context.Context, client *cliententity.ClientEntity) error {
+	query := `
+        INSERT INTO clients (
+            name, surname1, surname2, email, identification, nationality, 
+            date_of_birth, sex, address, city, province, state, 
+            zip_code, telephone
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        RETURNING id, created_at, updated_at`
+
+	// Execute the query and scan the returned values into the client struct
+	err := r.db.QueryRowContext(ctx, query,
+		client.Name,
+		client.Surname1,
+		client.Surname2,
+		client.Email,
+		client.Identification,
+		client.Nationality,
+		client.DateOfBirth,
+		client.Sex,
+		client.Address,
+		client.City,
+		client.Province,
+		client.State,
+		client.ZipCode,
+		client.Telephone,
+	).Scan(&client.ID, &client.CreatedAt, &client.UpdatedAt)
+
+	if err != nil {
+		r.logger.Error("Error occurred: " + err.Error())
+
+		return fmt.Errorf("failed to insert client: %w", err)
+	}
+	return nil
+}
