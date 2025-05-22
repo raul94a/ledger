@@ -38,7 +38,7 @@ func ToAccountEntity(account accountdto.AccountDto) (accountentity.AccountEntity
 	return entity, nil
 }
 
-func ToAccountDTO(entity accountentity.AccountEntity, balance *float64) (accountdto.AccountDto, error) {
+func ToAccountDTO(entity accountentity.AccountEntity, balance *float64) accountdto.AccountDto {
 	var dto accountdto.AccountDto
 
 	
@@ -60,5 +60,5 @@ func ToAccountDTO(entity accountentity.AccountEntity, balance *float64) (account
 
 
 
-	return dto, nil
+	return dto
 }

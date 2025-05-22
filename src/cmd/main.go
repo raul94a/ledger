@@ -62,6 +62,7 @@ func main() {
 	 * ROUTES
 	 */
 	router.GET("/")
+	router.POST("/accounts",accountHandler.CreateAccount)
 	router.GET("/accounts/:client_id", accountHandler.FetchAccounts)
 	router.POST("/clients", clientHandler.CreateClient)
 	router.Run() // Listen on :8080 by default

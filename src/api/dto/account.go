@@ -14,4 +14,8 @@ type AccountDto struct {
 }
 
 
+type CreateAccountRequest struct {
+	ClientID int `json:"client_id"`
+}
+
 
