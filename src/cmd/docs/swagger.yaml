@@ -1,0 +1,9 @@
+basePath: /
+host: localhost:8080
+info:
+  contact: {}
+  description: Clients management of a bank system.
+  title: API Bank Clients
+  version: "1.0"
+paths: {}
+swagger: "2.0"
