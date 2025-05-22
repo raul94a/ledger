@@ -138,7 +138,7 @@ func (r *accountRepository) InsertAccount(ctx context.Context, account *accounte
 	).Scan(&account.ID, &account.CreatedAt, &account.UpdatedAt)
 
 	if err != nil {
-		r.logger.Error("Error occurred inserting account: " + err.Error())
+		r.logger.Error("Error occurred inserting account: " + err.Error() + " .ClientID: " + fmt.Sprint(account.ClientID))
 		tx.Rollback()
 		return err
 	}
