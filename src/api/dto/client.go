@@ -43,8 +43,8 @@ type ClientResponse struct {
     TaxID          string `json:"tax_id" binding:"required"` // e.g., SSN, TIN
     Telephone      string `json:"telephone" binding:"required"` // Basic phone validation can be added
     ZipCode        string `json:"zip_code" binding:"required"`
-    CreatedDate    string `json:"created_date" binding:"required,datetime=2006-01-02 23:00:00"` // ISO 8601 date (YYYY-MM-DD HH:mm:ss)
-    UpdatedDate    string `json:"updated_date" binding:"required,datetime=2006-01-02 23:00:00"` // ISO 8601 date (YYYY-MM-DD HH:mm:ss)
+    CreatedDate    string `json:"created_date" binding:"required,datetime=2006-01-02 15:04:05"` // ISO 8601 date (YYYY-MM-DD HH:mm:ss)
+    UpdatedDate    string `json:"updated_date" binding:"required,datetime=2006-01-02 15:04:05"` // ISO 8601 date (YYYY-MM-DD HH:mm:ss)
 }
 
 
