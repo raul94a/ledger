@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"github.com/gin-gonic/gin"
 	"net/http"
 	dto "src/api/dto"
 	accountentity "src/domain/account"
@@ -8,8 +9,6 @@ import (
 	repositories "src/repositories"
 	"src/utils"
 	"strconv"
-
-	"github.com/gin-gonic/gin"
 )
 
 type AccountHandler interface {
@@ -38,18 +37,24 @@ func (h *IAccountHandler) FetchAccounts(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid identifier"})
 		return
 	}
-	accEntities, err := h.AccountRepository.FetchAccountsByClient(c, clientID)
+	accEntities, error := h.AccountRepository.FetchAccountsByClient(c, clientID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "type": "fetching client accounts"})
+		error.JsonError(c)
+		return
+	}
+	if len(accEntities) == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"accounts": make([]dto.AccountDto, 0),
+		})
 		return
 	}
 	var accounts []dto.AccountDto
 	for _, accountEntity := range accEntities {
-		accountDto:= mappers.ToAccountDTO(accountEntity, nil)
-		
-		balance, err := h.TransactionRepository.FetchAccountBalance(c, nil, accountDto.ID)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		accountDto := mappers.ToAccountDTO(accountEntity, nil)
+
+		balance, error := h.TransactionRepository.FetchAccountBalance(c, nil, accountDto.ID)
+		if error != nil {
+			error.JsonError(c)
 			return
 		}
 		accountDto.Balance = *balance
@@ -66,29 +71,24 @@ func (h *IAccountHandler) CreateAccount(c *gin.Context) {
 	const spainCode string = "ES"
 	const bankDigits string = "0182"
 	const branchDigits string = "0600"
-	if err := c.ShouldBindJSON(&createAccountReq); err != nil {
+	if error := c.ShouldBindJSON(&createAccountReq); error != nil {
 		statusCode := http.StatusBadRequest
 		reason := http.StatusText(statusCode)
-		c.JSON(statusCode, gin.H{"error": err.Error(), "reason": reason})
+		c.JSON(statusCode, gin.H{"error": error.Error(), "reason": reason})
 		return
 	}
 	handler := utils.IbanHandler{}
 
 	accNumber := handler.GenerateAccountNumber(10)
-	cc,err := handler.DomesticCheckDigits(bankDigits,branchDigits,accNumber)
-	if err != nil {
-		code := http.StatusInternalServerError
-		// LOG
-		c.JSON(code, gin.H{"error": "something occurred during IBAN creation", "reason": http.StatusText(code)})
-		return
-	}
-	bban := utils.Bban {
-		BankCode: bankDigits,
-		BranchCode: branchDigits,
+	cc := handler.DomesticCheckDigits(bankDigits, branchDigits, accNumber)
+
+	bban := utils.Bban{
+		BankCode:            bankDigits,
+		BranchCode:          branchDigits,
 		DomesticCheckDigits: cc,
-		AccountNumber: accNumber,
+		AccountNumber:       accNumber,
 	}
-	iban, err := handler.ComputeIban(bban,spainCode)
+	iban, err := handler.ComputeIban(bban, spainCode)
 	if err != nil {
 		statusCode := http.StatusBadRequest
 		reason := http.StatusText(statusCode)
@@ -102,18 +102,16 @@ func (h *IAccountHandler) CreateAccount(c *gin.Context) {
 		AccountNumber: iban,
 	}
 
-	err = h.AccountRepository.InsertAccount(c, &accountEntity)
+	error := h.AccountRepository.InsertAccount(c, &accountEntity)
 	if err != nil {
-		statusCode := http.StatusBadRequest
-		reason := http.StatusText(statusCode)
-		c.JSON(statusCode, gin.H{"error": err.Error(), "reason": reason})
+		error.JsonError(c)
 		return
 	}
 	balance := 0.0
 	var balancePtr *float64 = &balance
-	
+
 	c.JSON(http.StatusOK, gin.H{
-		"account": mappers.ToAccountDTO(accountEntity,balancePtr),
+		"account": mappers.ToAccountDTO(accountEntity, balancePtr),
 	})
 
 }

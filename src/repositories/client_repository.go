@@ -12,9 +12,9 @@ import (
 )
 
 type ClientRepository interface {
-	FetchClientById(ctx context.Context, ID int) (cliententity.ClientEntity, error)
-	FetchClient(ctx context.Context, identification string) (cliententity.ClientEntity, error)
-	InsertClient(ctx context.Context, client *cliententity.ClientEntity) error
+	FetchClientById(ctx context.Context, ID int) (cliententity.ClientEntity, errors.AppError)
+	FetchClient(ctx context.Context, identification string) (cliententity.ClientEntity, errors.AppError)
+	InsertClient(ctx context.Context, client *cliententity.ClientEntity) errors.AppError
 }
 
 type clientRepository struct {
@@ -33,7 +33,7 @@ func NewClientRepository(db *sql.DB, logger *slog.Logger) ClientRepository {
 }
 
 
-func (r *clientRepository) FetchClient(ctx context.Context, identification string) (cliententity.ClientEntity, error) {
+func (r *clientRepository) FetchClient(ctx context.Context, identification string) (cliententity.ClientEntity, errors.AppError) {
 	query := `
 	 SELECT * FROM clients where identification = $1
 	`
@@ -57,19 +57,19 @@ func (r *clientRepository) FetchClient(ctx context.Context, identification strin
 		&client.CreatedAt,
 		&client.UpdatedAt)
 	if err == sql.ErrNoRows {
-		r.logger.Error("No client found " + identification)
-		return cliententity.ClientEntity{}, &errors.ErrEntityNotFound{Identifier: identification}
+		r.logger.Error("No client found for " + identification)
+		return cliententity.ClientEntity{}, &errors.ErrNotFound{Reason:err, Entity: "Client"}
 
 	}
 	if err != nil {
 		r.logger.Error("Error occurred: " + err.Error())
 
-		return cliententity.ClientEntity{}, err
+		return cliententity.ClientEntity{}, &errors.ErrInternalServer{Reason: err}
 	}
 	return client, nil
 }
 
-func (r *clientRepository) FetchClientById(ctx context.Context, ID int) (cliententity.ClientEntity, error) {
+func (r *clientRepository) FetchClientById(ctx context.Context, ID int) (cliententity.ClientEntity, errors.AppError) {
 	query := `
 	 SELECT * FROM clients where id = $1
 	`
@@ -94,17 +94,17 @@ func (r *clientRepository) FetchClientById(ctx context.Context, ID int) (cliente
 		&client.UpdatedAt)
 	if err == sql.ErrNoRows {
 		r.logger.Error("No client found " + fmt.Sprint(ID))
-		return cliententity.ClientEntity{}, &errors.ErrEntityNotFound{Identifier: fmt.Sprint(ID)}
+		return cliententity.ClientEntity{}, &errors.ErrNotFound{Entity: "Client", Reason: err}
 
 	}
 	if err != nil {
 		r.logger.Error("Error occurred: " + err.Error())
-		return cliententity.ClientEntity{}, err
+		return cliententity.ClientEntity{},&errors.ErrInternalServer{Reason: err} 
 	}
 	return client, nil
 }
 
-func (r *clientRepository) InsertClient(ctx context.Context, client *cliententity.ClientEntity) error {
+func (r *clientRepository) InsertClient(ctx context.Context, client *cliententity.ClientEntity) errors.AppError{
 	query := `
         INSERT INTO clients (
             name, surname1, surname2, email, identification, nationality, 
@@ -134,7 +134,7 @@ func (r *clientRepository) InsertClient(ctx context.Context, client *cliententit
 	if err != nil {
 		r.logger.Error("Error occurred: " + err.Error())
 
-		return fmt.Errorf("failed to insert client: %w", err)
+		return &errors.ErrInternalServer{Reason: err}
 	}
 	return nil
 }
