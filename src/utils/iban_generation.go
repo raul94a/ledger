@@ -198,9 +198,9 @@ func (i *IbanHandler) ComputeIban(bban Bban, countryCode string) (string, error)
 
 }
 
-// 0123 4567 89.10.11  12.13
-// ESkk BBBB GGGG   	  CC    AAAAAAAAAA
-func (i *IbanHandler)Verify(iban string) bool {
+//
+// ESkk BBBB GGGG CC AAAAAAAAAA
+func (i *IbanHandler) Verify(iban string) bool {
 	if len(iban) < 24 {
 		return false
 	}

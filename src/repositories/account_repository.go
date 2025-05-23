@@ -12,6 +12,7 @@ import (
 
 type AccountRepository interface {
 	FetchAccountById(ctx context.Context, ID int) (accountentity.AccountEntity, error)
+	FetchAccountIdByAccountNumber(ctx context.Context, iban string) (*int, error)
 	FetchAccountsByClient(ctx context.Context, clientID int) ([]accountentity.AccountEntity, error)
 	InsertAccount(ctx context.Context, account *accountentity.AccountEntity) error
 	createAccountBalance(ctx context.Context, tx *sql.Tx, account *accountentity.AccountEntity) error
@@ -30,6 +31,28 @@ func NewAccountRepository(db *sql.DB, logger *slog.Logger) AccountRepository {
 		logger = slog.Default()
 	}
 	return &accountRepository{db: db, logger: logger}
+}
+
+func (r *accountRepository) FetchAccountIdByAccountNumber(ctx context.Context, iban string)(*int, error){
+	fmt.Println("ACCOUNT NUMBER ", iban)
+	query := `
+		SELECT id from accounts where account_number = $1
+	`
+	fmt.Println("ACCOUNT NUMBER ", iban)
+
+	var id *int
+	err := r.db.QueryRowContext(ctx,query,iban).Scan(&id)
+	if err == sql.ErrNoRows {
+		r.logger.Error("Error occurred: " + err.Error())
+		return nil, err
+	}
+	if err != nil {
+		r.logger.Error("Error occurred: " + err.Error())
+		return nil, err
+	}
+	r.logger.Info("ID ES ", id)
+	return id,nil
+	
 }
 
 func (r *accountRepository) FetchAccountsByClient(ctx context.Context, clientID int) ([]accountentity.AccountEntity, error) {
