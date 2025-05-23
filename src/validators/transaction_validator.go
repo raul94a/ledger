@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func ValidateTransactionBalance(transaction transaction_entity.TransactionEntity, balance float64, logger *slog.Logger) error {
+func ValidateTransactionBalance(transaction transaction_entity.TransactionEntity, balance float64, logger *slog.Logger) errors.AppError {
 	transactionType := strings.ToUpper(transaction.Type)
 
 	if transactionType == "ADD" {
@@ -16,7 +16,7 @@ func ValidateTransactionBalance(transaction transaction_entity.TransactionEntity
 	}
 	if balance < transaction.Amount {
 		errStr := fmt.Sprintf(
-			"Not enough funds. Account %d has %v money. Tried to %s %v units",
+			"Not enough funds. Account %d has %v monetary units. Tried to %s %v units",
 			transaction.AccountID,
 			balance,
 			transactionType,

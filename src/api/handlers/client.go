@@ -30,28 +30,27 @@ type IClientHandler struct {
 // @Router /clients [post]
 func (h *IClientHandler) CreateClient(c *gin.Context){
 	var client clientdto.CreateClientRequest
-	if err := c.ShouldBindJSON(&client); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if error := c.ShouldBindJSON(&client); error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": error.Error()})
 		return
 	}
 
-	clientEntity, err := mappers.ToClientEntity(client)
-	if(err != nil){
-
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	clientEntity, error := mappers.ToClientEntity(client)
+	if(error != nil){
+		c.JSON(http.StatusBadRequest, gin.H{"error": error.Error()})
 		return
 	}
 	context := c.Request.Context()
-	err = h.ClientRepository.InsertClient(context, &clientEntity)
+	err := h.ClientRepository.InsertClient(context, &clientEntity)
 	if err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		err.JsonError(c)
 		return
 	}
 	// Si el parsing fue exitoso, 'client' ahora contiene los datos del JSON
-	clientResponse, err := mappers.ToClientDTO(clientEntity)
+	clientResponse, error := mappers.ToClientDTO(clientEntity)
 	// Aquí podrías guardar el usuario en una base de datos, realizar validaciones adicionales, etc.
 	// Por simplicidad, solo devolvemos un mensaje de éxito.
-	if err != nil {
+	if error != nil {
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}

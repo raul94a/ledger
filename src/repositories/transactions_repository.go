@@ -9,18 +9,17 @@ import (
 	transaction_entity "src/domain/transaction"
 	errors "src/errors"
 	validators "src/validators"
-
 	"strings"
 )
 
 type TransactionRepository interface {
 	// FetchTransactionById(ctx context.Context, ID int) (transaction_entity.TransactionEntity, error)
 	// FetchTransactionsByAccount(ctx context.Context, accountID int) ([]transaction_entity.TransactionEntity, error)
-	FetchAccountBalance(ctx context.Context, tx *sql.Tx, accountID int) (*float64, error)
-	updateAccountBalance(ctx context.Context, tx *sql.Tx, ledgerTransaction ledgerentity.LedgerTransaction) error
-	InsertTransaction(ctx context.Context, tx *sql.Tx, transaction *transaction_entity.TransactionEntity) error
-	InsertLedgerEntry(ctx context.Context, tx *sql.Tx, ledgerTransaction *ledgerentity.LedgerTransaction) error
-	InsertTransactionLedgerTx(ctx context.Context, transaction *transaction_entity.TransactionEntity) error
+	FetchAccountBalance(ctx context.Context, tx *sql.Tx, accountID int) (*float64, errors.AppError)
+	updateAccountBalance(ctx context.Context, tx *sql.Tx, ledgerTransaction ledgerentity.LedgerTransaction) errors.AppError
+	InsertTransaction(ctx context.Context, tx *sql.Tx, transaction *transaction_entity.TransactionEntity) errors.AppError
+	InsertLedgerEntry(ctx context.Context, tx *sql.Tx, ledgerTransaction *ledgerentity.LedgerTransaction) errors.AppError
+	InsertTransactionLedgerTx(ctx context.Context, transaction *transaction_entity.TransactionEntity) errors.AppError
 }
 
 type transactionRepository struct {
@@ -38,7 +37,7 @@ func NewTransactionRepository(db *sql.DB, logger *slog.Logger) TransactionReposi
 	return &transactionRepository{db: db, logger: logger}
 }
 
-func (r *transactionRepository) InsertTransaction(ctx context.Context, tx *sql.Tx, transaction *transaction_entity.TransactionEntity) error {
+func (r *transactionRepository) InsertTransaction(ctx context.Context, tx *sql.Tx, transaction *transaction_entity.TransactionEntity) errors.AppError {
 	query := `
         INSERT INTO transactions (
             account_id, to_account_id, amount, type
@@ -57,12 +56,12 @@ func (r *transactionRepository) InsertTransaction(ctx context.Context, tx *sql.T
 	if err != nil {
 		r.logger.Error("Error occurred while inserting transaction: %s", err.Error())
 		r.logger.Error("Account id: %s, amount: %v, type: %s", transaction.AccountID, transaction.Amount, transaction.Type)
-		return &errors.ErrTransactionInsertFailed{Message: "", Reason: err}
+		return &errors.ErrInternalServer{Reason: err}
 	}
 	return nil
 }
 
-func (r *transactionRepository) InsertLedgerEntry(ctx context.Context, tx *sql.Tx, ledgerTransaction *ledgerentity.LedgerTransaction) error {
+func (r *transactionRepository) InsertLedgerEntry(ctx context.Context, tx *sql.Tx, ledgerTransaction *ledgerentity.LedgerTransaction) errors.AppError {
 	query := `
         INSERT INTO ledger_entries (
             transaction_id, account_id, type, amount
@@ -89,16 +88,17 @@ func (r *transactionRepository) InsertLedgerEntry(ctx context.Context, tx *sql.T
 		r.logger.Error(errString)
 		errString = fmt.Sprintf("Account id: %d, amount: %v, type: %s", transaction.AccountID, transaction.Amount, transaction.Type)
 		r.logger.Error(errString)
-		return &errors.ErrLedgerEntryInsertFailed{Message: origin, Reason: err}
+		return &errors.ErrInternalServer{Reason: err}
 	}
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
-
-		return &errors.ErrNoRowsAffected{Message: "Problem during inserting ledgerEntry"}
+		errString := fmt.Sprintf("No rows affected for transaction %v", ledgerTransaction)
+		r.logger.Error(errString)
+		return &errors.ErrInternalServer{Reason: err}
 	}
 	err = r.updateAccountBalance(ctx, tx, *ledgerTransaction)
 	if err != nil {
-		return err
+		return &errors.ErrInternalServer{Reason: err}
 	}
 	return nil
 }
@@ -114,7 +114,7 @@ func (r *transactionRepository) InsertLedgerEntry(ctx context.Context, tx *sql.T
 *
  */
 
-func (r *transactionRepository) InsertTransactionLedgerTx(ctx context.Context, transaction *transaction_entity.TransactionEntity) error {
+func (r *transactionRepository) InsertTransactionLedgerTx(ctx context.Context, transaction *transaction_entity.TransactionEntity) errors.AppError {
 	tx, txErr := r.db.BeginTx(ctx, &sql.TxOptions{
 		ReadOnly:  false,
 		Isolation: 0,
@@ -122,7 +122,7 @@ func (r *transactionRepository) InsertTransactionLedgerTx(ctx context.Context, t
 
 	if txErr != nil {
 		r.logger.Error("Error occurred while beginning transaction ledger: %s ", txErr.Error())
-		return txErr
+		return &errors.ErrInternalServer{Reason: txErr}
 	}
 
 	// we always starts with the account triggering the transaction
@@ -200,7 +200,7 @@ func (r *transactionRepository) updateAccountBalance(
 	ctx context.Context,
 	tx *sql.Tx,
 	ledgerTransaction ledgerentity.LedgerTransaction,
-) error {
+) errors.AppError {
 	query := ""
 	mustAdd := ledgerTransaction.LedgerType == "CREDIT"
 	infoStr := fmt.Sprint("Must add credit to ledger: %v", mustAdd)
@@ -221,14 +221,14 @@ func (r *transactionRepository) updateAccountBalance(
 			ledgerTransaction.AccountID,
 		)
 		r.logger.Error(errStr)
-		return err
+		return &errors.ErrInternalServer{Reason: err}
 	}
 
 	return nil
 
 }
 
-func (r *transactionRepository) FetchAccountBalance(ctx context.Context, tx *sql.Tx, accountID int) (*float64, error) {
+func (r *transactionRepository) FetchAccountBalance(ctx context.Context, tx *sql.Tx, accountID int) (*float64, errors.AppError) {
 	query := `SELECT balance from account_balances where account_id = $1`
 	var balance *float64
 	if tx == nil {
@@ -239,7 +239,7 @@ func (r *transactionRepository) FetchAccountBalance(ctx context.Context, tx *sql
 				accountID,
 			)
 			r.logger.Error(errStr)
-			return nil, err
+			return nil, &errors.ErrInternalServer{Reason: err}
 
 		}
 	} else {
@@ -250,7 +250,7 @@ func (r *transactionRepository) FetchAccountBalance(ctx context.Context, tx *sql
 				accountID,
 			)
 			r.logger.Error(errStr)
-			return nil, err
+			return nil, &errors.ErrInternalServer{Reason: err}
 		}
 	}
 	return balance, nil

@@ -23,8 +23,8 @@ type ITransactionHandler struct {
 // POST
 func (h *ITransactionHandler) PerformTransaction(c *gin.Context) {
 	var performnTransactionDto dto.PerformTransactionDto
-	if err := c.ShouldBindJSON(&performnTransactionDto); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if error := c.ShouldBindJSON(&performnTransactionDto); error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": error.Error()})
 		return
 	}
 	// pre-validation
@@ -63,12 +63,12 @@ func (h *ITransactionHandler) PerformTransaction(c *gin.Context) {
 		accNr := *performnTransactionDto.ToAccountNumber
 		fmt.Println("ACCOUNT NUMBER ", accNr)
 		id, err := h.AccountRepository.FetchAccountIdByAccountNumber(c, accNr)
-		if err != nil || id == nil{
-			if err == sql.ErrNoRows{
-				c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-				return
-			}
-			c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+		if err != nil{
+			err.JsonError(c)
+			return
+		}
+		if id == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
 			return
 		}
 		toAccountIdSql.Valid = true
@@ -91,7 +91,7 @@ func (h *ITransactionHandler) PerformTransaction(c *gin.Context) {
 	err := h.TransactionRepository.InsertTransactionLedgerTx(c,&transactionEntity)
 	if err != nil {
 		
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})		
+		err.JsonError(c)		
 		return
 	}
 	transactionDto := dto.TransactionDto {

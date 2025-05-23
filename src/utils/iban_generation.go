@@ -66,7 +66,7 @@ func (i *IbanHandler) GenerateAccountNumber(length int) string {
 
 // Adjust results: 10 → 1, 11 → 0.
 
-func (i *IbanHandler) DomesticCheckDigits(bankDigits, branchDigits, accountNr string) (string, error) {
+func (i *IbanHandler) DomesticCheckDigits(bankDigits, branchDigits, accountNr string) string {
 
 	// BBBBGGGG Construction
 	bankDigitsWithBranchDigits := fmt.Sprintf("%s%s", bankDigits, branchDigits)
@@ -100,7 +100,7 @@ func (i *IbanHandler) DomesticCheckDigits(bankDigits, branchDigits, accountNr st
 		secondDigit = 1
 	}
 
-	return fmt.Sprintf("%v%v", firstDigit, secondDigit), nil
+	return fmt.Sprintf("%v%v", firstDigit, secondDigit)
 
 }
 
@@ -209,8 +209,8 @@ func (i *IbanHandler) Verify(iban string) bool {
 	accountNr := iban[14:]
 	ibanControlDigits := iban[12:14]
 
-	controlDigits, err := i.DomesticCheckDigits(bankDigits, branchDigits, accountNr)
-	if err != nil || controlDigits != ibanControlDigits {
+	controlDigits := i.DomesticCheckDigits(bankDigits, branchDigits, accountNr)
+	if  controlDigits != ibanControlDigits {
 		fmt.Printf("\nBank digits:%s\tBranch Digits:%s\tAccountNr:%s\n", bankDigits, branchDigits, accountNr)
 		fmt.Printf("Computed ControlDigits %s : TestControlDigits %s\n", controlDigits, ibanControlDigits)
 		return false

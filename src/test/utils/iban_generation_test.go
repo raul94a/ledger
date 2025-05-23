@@ -19,7 +19,7 @@ func TestMain(t *testing.T) {
 	for i := 0; i < iterations; i++ {
 		handler := app_utils.IbanHandler{}
 		accNr := handler.GenerateAccountNumber(10)
-		cc, _ := handler.DomesticCheckDigits(myBankDigits, myBranchBankDigits, accNr)
+		cc := handler.DomesticCheckDigits(myBankDigits, myBranchBankDigits, accNr)
 		bban := app_utils.Bban {
 			BankCode: myBankDigits,
 			BranchCode: myBranchBankDigits,
