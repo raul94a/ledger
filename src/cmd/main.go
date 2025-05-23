@@ -42,28 +42,41 @@ func main() {
 		router.Use(middlewareFn())
 	}
 
-	
-	
-
-
 	/**
 	 * HANDLERS
 	 */
-
+	transactionRepository := repositories.NewTransactionRepository(db.DB, logger)
+	accountRepository := repositories.NewAccountRepository(db.DB, logger)
 	clientHandler := handlers.IClientHandler{
 		ClientRepository: repositories.NewClientRepository(db.DB, logger),
 	}
-	accountHandler := handlers.IAccountHandler {
-		AccountRepository: repositories.NewAccountRepository(db.DB,logger),
-		TransactionRepository: repositories.NewTransactionRepository(db.DB,logger),
+	accountHandler := handlers.IAccountHandler{
+		AccountRepository:     accountRepository,
+		TransactionRepository: transactionRepository,
 	}
-	
+
+	transactionHandler := handlers.ITransactionHandler{
+		TransactionRepository: transactionRepository,
+		AccountRepository: accountRepository,
+	}
+
 	/**
 	 * ROUTES
 	 */
 	router.GET("/")
-	router.POST("/accounts",accountHandler.CreateAccount)
-	router.GET("/accounts/:client_id", accountHandler.FetchAccounts)
-	router.POST("/clients", clientHandler.CreateClient)
+	accounts := router.Group("/accounts")
+	{
+		accounts.POST("", accountHandler.CreateAccount)
+		accounts.GET("/:client_id", accountHandler.FetchAccounts)
+	}
+	clients := router.Group("/clients")
+	{
+		clients.POST("", clientHandler.CreateClient)
+
+	}
+	transactions := router.Group("/transactions")
+	{
+		transactions.POST("", transactionHandler.PerformTransaction)
+	}
 	router.Run() // Listen on :8080 by default
 }
