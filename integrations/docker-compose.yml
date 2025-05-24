@@ -190,6 +190,9 @@ services:
      - "/sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro"
      - "/proc:/hostfs/proc:ro"
      - "/:/hostfs:ro"
+     - ./entrypoint_mf.sh:/entrypoint_mf.sh
+   command: ["-e"]
+   entrypoint: ["/entrypoint_mf.sh"] # Use your custom entrypoint
    environment:
      - ELASTIC_USER=elastic
      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
@@ -207,9 +210,12 @@ services:
      - certs:/usr/share/filebeat/certs
      - filebeatdata01:/usr/share/filebeat/data
      - "./filebeat_ingest_data/:/usr/share/filebeat/ingest_data/"
-     - "./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro"
+     - "./filebeat.yml:/usr/share/filebeat/filebeat.yml"
      - "/var/lib/docker/containers:/var/lib/docker/containers:ro"
      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+     - ./entrypoint_fb.sh:/entrypoint_fb.sh
+   command: ["-e"]
+   entrypoint: ["/entrypoint_fb.sh"]
    environment:
      - ELASTIC_USER=elastic
      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
