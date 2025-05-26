@@ -11,9 +11,11 @@ Regarding the API documentation, gin-swagger is being used to generate the docs 
 
 ## Keycloak Documentation
 ### Users
-[Users management documentation](https://www.keycloak.org/docs-api/latest/rest-api/index.html#_users)
-[Credential Representation](https://www.keycloak.org/docs-api/latest/rest-api/index.html#CredentialRepresentation)
-[User Representation](https://www.keycloak.org/docs-api/latest/rest-api/index.html#UserRepresentation)
+* [Users management documentation](https://www.keycloak.org/docs-api/latest/rest-api/index.html#_users)
+
+* [Credential Representation](https://www.keycloak.org/docs-api/latest/rest-api/index.html#CredentialRepresentation)
+
+* [User Representation](https://www.keycloak.org/docs-api/latest/rest-api/index.html#UserRepresentation)
 
 ## Tech Stack
 
