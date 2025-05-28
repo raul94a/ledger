@@ -30,7 +30,7 @@ func AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
-func AuthorizationMiddleware(c *gin.Context) {
+func AuthenticationMiddleware(c *gin.Context) {
 	accessToken := c.GetHeader("Authorization")
 	splittedToken := strings.Split(accessToken, " ")
 	if splittedToken[0] != "Bearer" {
@@ -52,7 +52,8 @@ func AuthorizationMiddleware(c *gin.Context) {
 		c.AbortWithStatusJSON(500, gin.H{"error": err.Error()})
 		return
 	}
-
+	// pass the token to the next middleware
+	c.Set("token",parsedToken)
 	c.Next()
 
 }
