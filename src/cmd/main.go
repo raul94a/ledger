@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
@@ -19,6 +20,10 @@ import (
 // @host localhost:8080
 // @BasePath /
 func main() {
+	err := godotenv.Load()
+    if err != nil {
+        log.Printf("Warning: Could not load .env file: %v. Falling back to system environment variables.", err)
+    }
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelDebug, // Debug level for detailed test output
 	}))
@@ -63,7 +68,9 @@ func main() {
 	/**
 	 * ROUTES
 	 */
+	
 	router.GET("/")
+	
 	accounts := router.Group("/accounts")
 	{
 		accounts.POST("", accountHandler.CreateAccount)
