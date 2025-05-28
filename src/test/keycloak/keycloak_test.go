@@ -14,7 +14,7 @@ func TestAdminAuthHandlerTest(t *testing.T){
 	if err != nil {
 		t.Fatal("Error loading .env file ",err.Error())
 	}
-	_, err = keycloak.AuthAdminUser()
+	_, err = api_keycloak.AuthAdminUser()
 	if err != nil {
 		t.Log(err)
 	}
@@ -23,7 +23,7 @@ func TestAdminAuthHandlerTest(t *testing.T){
 }
 
 func TestKeyCloakJWK(t *testing.T){
-	jwk, err := keycloak.GetJwkCerts()
+	jwk, err := api_keycloak.GetJwkCerts()
 	if err != nil {
 		t.Log("ERROR ", err)
 		

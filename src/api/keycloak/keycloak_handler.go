@@ -1,4 +1,4 @@
-package keycloak
+package api_keycloak
 
 import (
 	"bytes"
@@ -10,8 +10,8 @@ import (
 )
 
 func AuthAdminUser() (TokenResponse, error) {
-	host := os.Getenv("HOST")
-	port := os.Getenv("PORT")
+	host := os.Getenv("KC_HOST")
+	port := os.Getenv("KD_PORT")
 	authEndpoint := os.Getenv("GET_TOKEN_URL")
 	url := fmt.Sprintf("%s:%s%s", host, port, authEndpoint)
 
@@ -44,11 +44,11 @@ func AuthAdminUser() (TokenResponse, error) {
 }
 
 func GetJwkCerts() (KeycloakJwkSet, error) {
-	host := os.Getenv("HOST")
-	port := os.Getenv("PORT")
+	host := os.Getenv("KC_HOST")
+	port := os.Getenv("KC_PORT")
 	jwkEndpoint := os.Getenv("JWK_URL")
 	url := fmt.Sprintf("%s:%s%s", host, port, jwkEndpoint)
-
+	fmt.Println("URL ", url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return KeycloakJwkSet{}, err
@@ -80,3 +80,5 @@ func GetJwkCerts() (KeycloakJwkSet, error) {
 
 	return jwkSet, nil
 }
+
+

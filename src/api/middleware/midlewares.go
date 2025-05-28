@@ -3,6 +3,8 @@ package middleware
 import (
 	"github.com/gin-gonic/gin"
 	"log"
+	api_keycloak "src/api/keycloak"
+	"strings"
 	"time"
 )
 
@@ -28,13 +30,38 @@ func AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
+func AuthorizationMiddleware(c *gin.Context) {
+	accessToken := c.GetHeader("Authorization")
+	splittedToken := strings.Split(accessToken, " ")
+	if splittedToken[0] != "Bearer" {
+		c.AbortWithStatusJSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+	token := splittedToken[1]
+	parsedToken, err := api_keycloak.VerifyToken(token)
+	if err != nil {
+		c.AbortWithStatusJSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	if parsedToken == nil {
+		c.AbortWithStatusJSON(500, gin.H{"error": "Internal Server Error"})
+		return
+	}
+	err = api_keycloak.VerifyClaims(parsedToken)
+	if err != nil {
+		c.AbortWithStatusJSON(500, gin.H{"error": err.Error()})
+		return
+	}
 
-func AppMiddlewares() ([]func() gin.HandlerFunc){
+	c.Next()
+
+}
+
+func AppMiddlewares() []func() gin.HandlerFunc {
 	var middlewares ([]func() gin.HandlerFunc)
-	middlewares = append(middlewares,LoggerMiddleware)
+	middlewares = append(middlewares, LoggerMiddleware)
 	//middlewares = append(middlewares,AuthMiddleware)
 
 	return middlewares
 
 }
-
