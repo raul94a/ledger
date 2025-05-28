@@ -34,13 +34,13 @@ func AuthenticationMiddleware(c *gin.Context) {
 	accessToken := c.GetHeader("Authorization")
 	splittedToken := strings.Split(accessToken, " ")
 	if splittedToken[0] != "Bearer" {
-		c.AbortWithStatusJSON(401, gin.H{"error": "Unauthorized"})
+		c.AbortWithStatusJSON(400, gin.H{"error": "Bad request"})
 		return
 	}
 	token := splittedToken[1]
 	parsedToken, err := api_keycloak.VerifyToken(token)
 	if err != nil {
-		c.AbortWithStatusJSON(400, gin.H{"error": err.Error()})
+		err.JsonError(c)
 		return
 	}
 	if parsedToken == nil {
@@ -49,7 +49,7 @@ func AuthenticationMiddleware(c *gin.Context) {
 	}
 	err = api_keycloak.VerifyClaims(parsedToken)
 	if err != nil {
-		c.AbortWithStatusJSON(500, gin.H{"error": err.Error()})
+		err.JsonError(c)
 		return
 	}
 	// pass the token to the next middleware

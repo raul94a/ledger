@@ -3,55 +3,55 @@ package api_keycloak
 import (
 	"crypto/rsa"
 	"fmt"
+	app_errors "src/errors"
 	"time"
-
 	"github.com/golang-jwt/jwt/v5"
 )
 
 var CacheJwkSet = &KeycloakJwkSet{Keys: make([]KeycloakJwk, 0)}
 
-func GetRsaPublicKey() (*rsa.PublicKey, error) {
+func GetRsaPublicKey() (*rsa.PublicKey, app_errors.AppError) {
 	if len(CacheJwkSet.Keys) != 0 {
-		fmt.Println("GET JWK FROM CACHE ", CacheJwkSet)
+		// fmt.Println("GET JWK FROM CACHE ", CacheJwkSet)
 		signingJwk, err := CacheJwkSet.GetSigJwk()
 		if err != nil {
-			return nil, fmt.Errorf("could not get JWK %s", err.Error())
+			return nil, err
 		}
 		key, err := signingJwk.ComputePublicRsaKey()
 		if err != nil {
-			return nil, fmt.Errorf("could not get RSA public key")
+			return nil, err
 		}
 		return &key, nil
 	} else {
-		fmt.Println("GET JWK FROM REMOTE")
+		// fmt.Println("GET JWK FROM REMOTE")
 
 		jwkSet, err := GetJwkCerts()
 		CacheJwkSet = &jwkSet
 		if err != nil {
-			return nil, fmt.Errorf("could not get JWK %s", err.Error())
+			return nil, err
 		}
 		signingJwk, err := jwkSet.GetSigJwk()
 		if err != nil {
-			return nil, fmt.Errorf("could not get JWK")
+			return nil, err
 		}
 		key, err := signingJwk.ComputePublicRsaKey()
 		if err != nil {
-			return nil, fmt.Errorf("could not get RSA public key")
+			return nil, err
 		}
 		return &key, nil
 	}
 }
 
-func VerifyToken(token string) (*jwt.Token, error) {
+func VerifyToken(token string) (*jwt.Token, app_errors.AppError) {
 	rsaKey, err := GetRsaPublicKey()
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 	jwk, err := CacheJwkSet.GetSigJwk()
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
-	parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+	parsedToken, jwtError := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
 		// Verificar el algoritmo de firma
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -64,30 +64,30 @@ func VerifyToken(token string) (*jwt.Token, error) {
 		return rsaKey, nil
 	})
 
-	if err != nil {
-		return nil,err
+	if jwtError != nil {
+		return nil, &app_errors.ErrVerifyToken{Message: jwtError.Error()}
 	}
 
 	if !parsedToken.Valid {
-		return nil,fmt.Errorf("token is not valid")
+		return nil, &app_errors.ErrVerifyToken{Message: "Token is not valid"}
 	}
 
-	return parsedToken,nil
+	return parsedToken, nil
 }
 
-func VerifyClaims(token *jwt.Token) error {
+func VerifyClaims(token *jwt.Token) app_errors.AppError {
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		return fmt.Errorf("error obtaining claims")
+		return &app_errors.ErrVerifyToken{Message: "error obtaining claims"}
 	}
-	
+
 	exp, ok := claims["exp"].(float64)
 	if !ok {
-		return fmt.Errorf("invalid expiration claim")
+		return &app_errors.ErrVerifyToken{Message: "invalid expiration claim"}
 	}
 	if exp < float64(time.Now().Unix()) {
-		return fmt.Errorf("token is expired")
+		return &app_errors.ErrVerifyToken{Message: "token is expired"}
 	}
 
 	// // subject

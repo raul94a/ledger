@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"math/big"
+	app_errors "src/errors"
 )
 
 /*
@@ -58,7 +59,7 @@ type KeycloakJwk struct {
 	X5tS256 string   `json:"x5t#S256"`
 }
 
-func (r *KeycloakJwkSet) GetSigJwk() (KeycloakJwk, error) {
+func (r *KeycloakJwkSet) GetSigJwk() (KeycloakJwk, app_errors.AppError) {
 	const signatureUse string = "sig"
 
 	for _, element := range r.Keys {
@@ -66,14 +67,14 @@ func (r *KeycloakJwkSet) GetSigJwk() (KeycloakJwk, error) {
 			return element, nil
 		}
 	}
-	return KeycloakJwk{}, fmt.Errorf("no sig JWK found")
+	return KeycloakJwk{}, &app_errors.ErrNotJwkFound{}
 }
 
-func (r *KeycloakJwk) ComputePublicRsaKey() (rsa.PublicKey, error) {
+func (r *KeycloakJwk) ComputePublicRsaKey() (rsa.PublicKey, app_errors.AppError) {
 
 	nBytes, err := base64.RawURLEncoding.DecodeString(r.N)
 	if err != nil {
-		return rsa.PublicKey{}, fmt.Errorf("failed to decode RSA modulus %s . %s", r.N, err.Error())
+		return rsa.PublicKey{}, &app_errors.ErrRsaPublicKey{Message: fmt.Sprintf("failed to decode RSA modulus %s . %s", r.N, err.Error())}
 
 	}
 
@@ -81,7 +82,7 @@ func (r *KeycloakJwk) ComputePublicRsaKey() (rsa.PublicKey, error) {
 
 	eBytes, err := base64.RawURLEncoding.DecodeString(r.E)
 	if err != nil {
-		return rsa.PublicKey{}, fmt.Errorf("failed to decode RSA exponent %s . %s", r.E, err.Error())
+		return rsa.PublicKey{}, &app_errors.ErrRsaPublicKey{Message: fmt.Sprintf("failed to decode RSA exponent %s . %s", r.E, err.Error())}
 	}
 	e := new(big.Int).SetBytes(eBytes)
 
@@ -93,3 +94,16 @@ func (r *KeycloakJwk) ComputePublicRsaKey() (rsa.PublicKey, error) {
 }
 
 
+
+
+// Keycloack TokenResponse
+type TokenResponse struct {
+    AccessToken      string    `json:"access_token"`
+    ExpiresIn        int       `json:"expires_in"`
+    RefreshExpiresIn int       `json:"refresh_expires_in"`
+    RefreshToken     string    `json:"refresh_token"`
+    TokenType        string    `json:"token_type"`
+    NotBeforePolicy  int64     `json:"not-before-policy"`
+    SessionState     string    `json:"session_state"`
+    Scope            string    `json:"scope"`
+}
