@@ -1,23 +1,23 @@
 package handlers
 
-import(
-	mappers "src/mappers"
+import (
+	"fmt"
 	"net/http"
 	clientdto "src/api/dto"
+	services "src/api/service"
 	repositories "src/repositories"
+
 	"github.com/gin-gonic/gin"
 )
-
-
-
 
 type ClientHandler interface {
 	CreateClient(c *gin.Context)
 }
 
-
 type IClientHandler struct {
-	ClientRepository repositories.ClientRepository
+	ClientRepository             repositories.ClientRepository
+	RegistryAccountOtpRepository repositories.RegistryAccountOtpRepository
+	ClientService				 services.ClientService
 }
 
 // @Summary Crea un nuevo cliente
@@ -28,34 +28,19 @@ type IClientHandler struct {
 // @Success 201 {object} map[string]interface{} "Cliente creado exitosamente"
 // @Failure 400 {object} map[string]string "Solicitud inválida"
 // @Router /clients [post]
-func (h *IClientHandler) CreateClient(c *gin.Context){
+func (h *IClientHandler) CreateClient(c *gin.Context) {
 	var client clientdto.CreateClientRequest
 	if error := c.ShouldBindJSON(&client); error != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": error.Error()})
 		return
 	}
 
-	clientEntity, error := mappers.ToClientEntity(client)
-	if(error != nil){
-		c.JSON(http.StatusBadRequest, gin.H{"error": error.Error()})
-		return
-	}
-	context := c.Request.Context()
-	err := h.ClientRepository.InsertClient(context, &clientEntity)
+	clientResponse, err := h.ClientService.CreateClient(client)
 	if err != nil {
-		err.JsonError(c)
+		fmt.Println("Error ", err.Error())
+		err.JsonError(c)		
 		return
 	}
-	// Si el parsing fue exitoso, 'client' ahora contiene los datos del JSON
-	clientResponse, error := mappers.ToClientDTO(clientEntity)
-	// Aquí podrías guardar el usuario en una base de datos, realizar validaciones adicionales, etc.
-	// Por simplicidad, solo devolvemos un mensaje de éxito.
-	if error != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-		return
-	}
-	// CreateClientRequest pasa a ClientEntity
-
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Cliente creado exitosamente",
 		"client":  clientResponse,

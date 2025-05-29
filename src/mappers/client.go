@@ -18,19 +18,6 @@ func ToClientEntity(client clientdto.CreateClientRequest) (cliententity.ClientEn
 		return cliententity.ClientEntity{}, fmt.Errorf("error parsing DateOfBirth: %w", err)
 	}
 
-	// Parsear CreatedDate
-	// Nota: El formato "2006-01-02 15:04:05" es para "YYYY-MM-DD HH:mm:ss"
-	createdDate, err := time.Parse("2006-01-02 15:04:05", client.CreatedDate)
-	if err != nil {
-		return cliententity.ClientEntity{}, fmt.Errorf("error parsing CreatedDate: %w", err)
-	}
-
-	// Parsear UpdatedDate
-	updatedDate, err := time.Parse("2006-01-02 15:04:05", client.UpdatedDate)
-	if err != nil {
-		return cliententity.ClientEntity{}, fmt.Errorf("error parsing UpdatedDate: %w", err)
-	}
-
 	// Asignar campos directos
 	entity.Address = client.Address
 	entity.City = client.City
@@ -46,8 +33,6 @@ func ToClientEntity(client clientdto.CreateClientRequest) (cliententity.ClientEn
 
 	// Asignar fechas parseadas
 	entity.DateOfBirth = dob
-	entity.CreatedAt = createdDate
-	entity.UpdatedAt = updatedDate
 
 	// Manejar campos opcionales usando sql.NullString
 	// Si el campo no está vacío en el DTO, asigna el valor.

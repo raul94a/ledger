@@ -19,6 +19,7 @@ type AccountHandler interface {
 type IAccountHandler struct {
 	AccountRepository     repositories.AccountRepository
 	TransactionRepository repositories.TransactionRepository
+	RegistryAccountOtpRepository repositories.RegistryAccountOtpRepository
 }
 
 // @Summary Returns clients accounts
@@ -38,7 +39,7 @@ func (h *IAccountHandler) FetchAccounts(c *gin.Context) {
 		return
 	}
 	accEntities, error := h.AccountRepository.FetchAccountsByClient(c, clientID)
-	if err != nil {
+	if error != nil {
 		error.JsonError(c)
 		return
 	}
@@ -67,6 +68,56 @@ func (h *IAccountHandler) FetchAccounts(c *gin.Context) {
 }
 
 func (h *IAccountHandler) CreateAccount(c *gin.Context) {
+	var createAccountReq dto.CreateAccountRequest
+	const spainCode string = "ES"
+	const bankDigits string = "0182"
+	const branchDigits string = "0600"
+	if error := c.ShouldBindJSON(&createAccountReq); error != nil {
+		statusCode := http.StatusBadRequest
+		reason := http.StatusText(statusCode)
+		c.JSON(statusCode, gin.H{"error": error.Error(), "reason": reason})
+		return
+	}
+	handler := utils.IbanHandler{}
+
+	accNumber := handler.GenerateAccountNumber(10)
+	cc := handler.DomesticCheckDigits(bankDigits, branchDigits, accNumber)
+
+	bban := utils.Bban{
+		BankCode:            bankDigits,
+		BranchCode:          branchDigits,
+		DomesticCheckDigits: cc,
+		AccountNumber:       accNumber,
+	}
+	iban, err := handler.ComputeIban(bban, spainCode)
+	if err != nil {
+		statusCode := http.StatusBadRequest
+		reason := http.StatusText(statusCode)
+		// LOG
+		c.JSON(statusCode, gin.H{"error": err.Error(), "reason": reason})
+		return
+	}
+
+	accountEntity := accountentity.AccountEntity{
+		ClientID:      createAccountReq.ClientID,
+		AccountNumber: iban,
+	}
+
+	error := h.AccountRepository.InsertAccount(c, &accountEntity)
+	if error != nil {
+		error.JsonError(c)
+		return
+	}
+	balance := 0.0
+	var balancePtr *float64 = &balance
+
+	c.JSON(http.StatusOK, gin.H{
+		"account": mappers.ToAccountDTO(accountEntity, balancePtr),
+	})
+
+}
+
+func (h *IAccountHandler) CreateAccountTx(c *gin.Context) {
 	var createAccountReq dto.CreateAccountRequest
 	const spainCode string = "ES"
 	const bankDigits string = "0182"
