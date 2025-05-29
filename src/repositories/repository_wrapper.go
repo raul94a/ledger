@@ -9,4 +9,5 @@ type RepositoryWrapper struct {
 	AccountRepository AccountRepository
 	ClientRepository ClientRepository
 	TransactionRepository TransactionRepository
+	RegistryAccountOtpRepository RegistryAccountOtpRepository
 }

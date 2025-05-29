@@ -1,0 +1,11 @@
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS kc_user_id VARCHAR(255);
+
+CREATE TABLE IF NOT EXISTS register_accounts_otp (
+    id SERIAL PRIMARY KEY,
+    client_id INTEGER,
+    otp VARCHAR(255),
+    validated BOOLEAN DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+

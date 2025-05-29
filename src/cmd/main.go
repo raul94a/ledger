@@ -5,8 +5,11 @@ import (
 	"log/slog"
 	"os"
 	handlers "src/api/handlers"
+	services "src/api/service"
+
 	// middleware "src/api/middleware"
 	"src/repositories"
+
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
@@ -21,10 +24,12 @@ func LoadRepositoryWrapper() {
 	transactionRepository := repositories.NewTransactionRepository(db.DB, logger)
 	accountRepository := repositories.NewAccountRepository(db.DB, logger)
 	clientRepository := repositories.NewClientRepository(db.DB, logger)
+	registryAccountOtpRepository := repositories.NewRegistryAccountOtpRepository(db.DB,logger)
 	repositoryWrapper = &repositories.RepositoryWrapper{
 		ClientRepository:      clientRepository,
 		AccountRepository:     accountRepository,
 		TransactionRepository: transactionRepository,
+		RegistryAccountOtpRepository: registryAccountOtpRepository,
 	}
 }
 func initializer() {
@@ -44,8 +49,6 @@ func initializer() {
 		log.Fatalln(err)
 		panic("error " + err.Error())
 	}
-
-	defer db.Close()
 
 	// Test the connection to the database
 	if err := db.Ping(); err != nil {
@@ -70,10 +73,13 @@ func main() {
 	 */
 	clientHandler := handlers.IClientHandler{
 		ClientRepository: repositoryWrapper.ClientRepository,
+		RegistryAccountOtpRepository: repositoryWrapper.RegistryAccountOtpRepository,
+		ClientService: services.NewClientService(repositoryWrapper.ClientRepository, repositoryWrapper.RegistryAccountOtpRepository),
 	}
 	accountHandler := handlers.IAccountHandler{
 		AccountRepository:     repositoryWrapper.AccountRepository,
 		TransactionRepository: repositoryWrapper.TransactionRepository,
+		RegistryAccountOtpRepository: repositoryWrapper.RegistryAccountOtpRepository,
 	}
 
 	transactionHandler := handlers.ITransactionHandler{
@@ -99,4 +105,5 @@ func main() {
 		transactions.POST("", transactionHandler.PerformTransaction)
 	}
 	router.Run() // Listen on :8080 by default
+	defer db.Close()
 }
