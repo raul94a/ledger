@@ -1,24 +1,32 @@
 package handlers
 
 import (
-	"github.com/gin-gonic/gin"
+	"context"
 	"net/http"
 	dto "src/api/dto"
-	accountentity "src/domain/account"
+	api_keycloak "src/api/keycloak"
+	services "src/api/service"
 	"src/mappers"
 	repositories "src/repositories"
-	"src/utils"
 	"strconv"
+
+	"github.com/gin-gonic/gin"
 )
 
 type AccountHandler interface {
 	FetchAccounts(c *gin.Context)
 	CreateAccount(c *gin.Context)
+	// UpdateRegisterAccountOtpStatus(c *gin.Context)
+	// CreateUser(c *gin.Context)
+	CompleteNewUserRegistration(c *gin.Context)
 }
 
 type IAccountHandler struct {
-	AccountRepository     repositories.AccountRepository
-	TransactionRepository repositories.TransactionRepository
+	KeycloakClient               api_keycloak.KeycloakClient
+	AccountService               services.AccountService
+	ClientRepository             repositories.ClientRepository
+	AccountRepository            repositories.AccountRepository
+	TransactionRepository        repositories.TransactionRepository
 	RegistryAccountOtpRepository repositories.RegistryAccountOtpRepository
 }
 
@@ -69,100 +77,65 @@ func (h *IAccountHandler) FetchAccounts(c *gin.Context) {
 
 func (h *IAccountHandler) CreateAccount(c *gin.Context) {
 	var createAccountReq dto.CreateAccountRequest
-	const spainCode string = "ES"
-	const bankDigits string = "0182"
-	const branchDigits string = "0600"
 	if error := c.ShouldBindJSON(&createAccountReq); error != nil {
 		statusCode := http.StatusBadRequest
 		reason := http.StatusText(statusCode)
 		c.JSON(statusCode, gin.H{"error": error.Error(), "reason": reason})
 		return
 	}
-	handler := utils.IbanHandler{}
 
-	accNumber := handler.GenerateAccountNumber(10)
-	cc := handler.DomesticCheckDigits(bankDigits, branchDigits, accNumber)
+	account, err := h.AccountService.CreateAccount(createAccountReq.ClientID)
 
-	bban := utils.Bban{
-		BankCode:            bankDigits,
-		BranchCode:          branchDigits,
-		DomesticCheckDigits: cc,
-		AccountNumber:       accNumber,
-	}
-	iban, err := handler.ComputeIban(bban, spainCode)
 	if err != nil {
-		statusCode := http.StatusBadRequest
-		reason := http.StatusText(statusCode)
-		// LOG
-		c.JSON(statusCode, gin.H{"error": err.Error(), "reason": reason})
+		err.JsonError(c)
 		return
 	}
 
-	accountEntity := accountentity.AccountEntity{
-		ClientID:      createAccountReq.ClientID,
-		AccountNumber: iban,
-	}
-
-	error := h.AccountRepository.InsertAccount(c, &accountEntity)
-	if error != nil {
-		error.JsonError(c)
-		return
-	}
-	balance := 0.0
-	var balancePtr *float64 = &balance
-
-	c.JSON(http.StatusOK, gin.H{
-		"account": mappers.ToAccountDTO(accountEntity, balancePtr),
-	})
+	c.JSON(http.StatusOK, account)
 
 }
 
-func (h *IAccountHandler) CreateAccountTx(c *gin.Context) {
-	var createAccountReq dto.CreateAccountRequest
-	const spainCode string = "ES"
-	const bankDigits string = "0182"
-	const branchDigits string = "0600"
-	if error := c.ShouldBindJSON(&createAccountReq); error != nil {
-		statusCode := http.StatusBadRequest
-		reason := http.StatusText(statusCode)
-		c.JSON(statusCode, gin.H{"error": error.Error(), "reason": reason})
+func (h *IAccountHandler) CompleteNewUserRegistration(c *gin.Context) {
+	var completeClientRegistration dto.CompleteClientRegistrationBankAccountRequest
+	if err := c.Bind(&completeClientRegistration); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	handler := utils.IbanHandler{}
-
-	accNumber := handler.GenerateAccountNumber(10)
-	cc := handler.DomesticCheckDigits(bankDigits, branchDigits, accNumber)
-
-	bban := utils.Bban{
-		BankCode:            bankDigits,
-		BranchCode:          branchDigits,
-		DomesticCheckDigits: cc,
-		AccountNumber:       accNumber,
-	}
-	iban, err := handler.ComputeIban(bban, spainCode)
+	// 1. Fetch the client
+	ctx := context.Background()
+	clientEntity, err := h.ClientRepository.FetchClientByIdentification(ctx, completeClientRegistration.Identification)
 	if err != nil {
-		statusCode := http.StatusBadRequest
-		reason := http.StatusText(statusCode)
-		// LOG
-		c.JSON(statusCode, gin.H{"error": err.Error(), "reason": reason})
+		err.JsonError(c)
 		return
 	}
-
-	accountEntity := accountentity.AccountEntity{
-		ClientID:      createAccountReq.ClientID,
-		AccountNumber: iban,
+	// 2. Create Keycloak User
+	credential := api_keycloak.KcCredentials{
+		Type:  "password",
+		Value: completeClientRegistration.Pin,
 	}
-
-	error := h.AccountRepository.InsertAccount(c, &accountEntity)
-	if err != nil {
-		error.JsonError(c)
-		return
-	}
-	balance := 0.0
-	var balancePtr *float64 = &balance
-
-	c.JSON(http.StatusOK, gin.H{
-		"account": mappers.ToAccountDTO(accountEntity, balancePtr),
+	credentials := make([]api_keycloak.KcCredentials, 0)
+	credentials = append(credentials, credential)
+	err = h.KeycloakClient.CreateUser(api_keycloak.KcCreateUserRequest{
+		Username:    completeClientRegistration.Identification,
+		FirstName:   clientEntity.Name,
+		LastName:    clientEntity.Surname1,
+		Email:       clientEntity.Email,
+		Enabled:     true,
+		Credentials: credentials,
 	})
+	if err != nil {
+		err.JsonError(c)
+		return
+	}
+	// 3. Call Service for completion of new client registration!
+
+	err = h.AccountService.CompleteClientRegistrationBankAccount(completeClientRegistration, clientEntity)
+	if err != nil {
+		err.JsonError(c)
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{})
+
+	// 3. Return OK
 
 }

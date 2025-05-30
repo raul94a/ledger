@@ -1,16 +1,14 @@
 package mappers
 
-import
-(	
-	"time"
+import (
 	"fmt"
-	accountentity "src/domain/account"
 	accountdto "src/api/dto"
+	accountentity "src/domain/account"
+	"time"
 )
 
 func ToAccountEntity(account accountdto.AccountDto) (accountentity.AccountEntity, error) {
 	var entity accountentity.AccountEntity
-
 
 	// Parsear CreatedDate
 	// Nota: El formato "2006-01-02 15:04:05" es para "YYYY-MM-DD HH:mm:ss"
@@ -33,15 +31,12 @@ func ToAccountEntity(account accountdto.AccountDto) (accountentity.AccountEntity
 	entity.CreatedAt = createdDate
 	entity.UpdatedAt = updatedDate
 
-	
-
 	return entity, nil
 }
 
 func ToAccountDTO(entity accountentity.AccountEntity, balance *float64) accountdto.AccountDto {
 	var dto accountdto.AccountDto
 
-	
 	// Formatear CreatedAt
 	// El formato "2006-01-02 15:04:05" es para "YYYY-MM-DD HH:mm:ss"
 	dto.CreatedDate = entity.CreatedAt.Format("2006-01-02 15:04:05")
@@ -53,12 +48,9 @@ func ToAccountDTO(entity accountentity.AccountEntity, balance *float64) accountd
 	dto.ID = entity.ID
 	dto.AccountNumber = entity.AccountNumber
 	dto.ClientID = entity.ClientID
-	if balance != nil{
+	if balance != nil {
 		dto.Balance = *balance
 	}
-
-
-
 
 	return dto
 }

@@ -71,5 +71,5 @@ func (s *clientService) CreateClient(req clientdto.CreateClientRequest) (clientd
 	}
 	// CreateClientRequest pasa a ClientEntity
 	tx.Commit()
-	return clientResponse,nil
+	return clientResponse, nil
 }

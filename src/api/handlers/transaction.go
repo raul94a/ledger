@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"database/sql"
-	"net/http"
 	"fmt"
+	"net/http"
 	dto "src/api/dto"
 	trasnactionentity "src/domain/transaction"
 	repositories "src/repositories"
@@ -28,7 +28,7 @@ func (h *ITransactionHandler) PerformTransaction(c *gin.Context) {
 		return
 	}
 	// pre-validation
-	// 
+	//
 	// Is AccountID from a trusted source?
 	// The API must protect accounts from impersonation
 	// so, check if the account belongs to the user calling this webservice is necessary
@@ -38,7 +38,7 @@ func (h *ITransactionHandler) PerformTransaction(c *gin.Context) {
 	var validTransactionTypes = []string{"ADD", "TRANSFER", "WITHDRAWAL"}
 	isValidType := false
 
-	for _,element := range validTransactionTypes {
+	for _, element := range validTransactionTypes {
 		if element == performnTransactionDto.Type {
 			isValidType = true
 		}
@@ -46,10 +46,10 @@ func (h *ITransactionHandler) PerformTransaction(c *gin.Context) {
 	if !isValidType {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Transaction type is not valid"})
 		return
-	} 
+	}
 	// 2. Transfer with Non empty ToAccountId
-	if performnTransactionDto.ToAccountNumber == nil && performnTransactionDto.Type == "TRANSFER"  {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Transaction type is not valid", "reason":"TRANSFER type needs to set to_account_id"})
+	if performnTransactionDto.ToAccountNumber == nil && performnTransactionDto.Type == "TRANSFER" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Transaction type is not valid", "reason": "TRANSFER type needs to set to_account_id"})
 		return
 	}
 	// 3. Negative money
@@ -63,7 +63,7 @@ func (h *ITransactionHandler) PerformTransaction(c *gin.Context) {
 		accNr := *performnTransactionDto.ToAccountNumber
 		fmt.Println("ACCOUNT NUMBER ", accNr)
 		id, err := h.AccountRepository.FetchAccountIdByAccountNumber(c, accNr)
-		if err != nil{
+		if err != nil {
 			err.JsonError(c)
 			return
 		}
@@ -81,30 +81,27 @@ func (h *ITransactionHandler) PerformTransaction(c *gin.Context) {
 		}
 
 	}
-	transactionEntity := trasnactionentity.TransactionEntity {
-		AccountID: performnTransactionDto.AccountID,
+	transactionEntity := trasnactionentity.TransactionEntity{
+		AccountID:   performnTransactionDto.AccountID,
 		ToAccountID: toAccountIdSql,
-		Type: performnTransactionDto.Type,
-		Amount: performnTransactionDto.Amount,
+		Type:        performnTransactionDto.Type,
+		Amount:      performnTransactionDto.Amount,
 	}
 
-	err := h.TransactionRepository.InsertTransactionLedgerTx(c,&transactionEntity)
+	err := h.TransactionRepository.InsertTransactionLedgerTx(c, &transactionEntity)
 	if err != nil {
-		
-		err.JsonError(c)		
+
+		err.JsonError(c)
 		return
 	}
-	transactionDto := dto.TransactionDto {
-		ID: transactionEntity.ID,
-		AccountID: transactionEntity.AccountID,
-		Type: transactionEntity.Type,
-		Amount: transactionEntity.Amount,
+	transactionDto := dto.TransactionDto{
+		ID:              transactionEntity.ID,
+		AccountID:       transactionEntity.AccountID,
+		Type:            transactionEntity.Type,
+		Amount:          transactionEntity.Amount,
 		ToAccountNumber: performnTransactionDto.ToAccountNumber,
-		CreatedAt: transactionEntity.CreatedAt,
-		UpdatedAt: transactionEntity.UpdatedAt,
+		CreatedAt:       transactionEntity.CreatedAt,
+		UpdatedAt:       transactionEntity.UpdatedAt,
 	}
 	c.JSON(http.StatusOK, gin.H{"transaction": transactionDto})
 }
-
-
-

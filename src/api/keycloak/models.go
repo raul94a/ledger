@@ -8,6 +8,7 @@ import (
 	app_errors "src/errors"
 )
 
+
 /*
 	RFC7517: JSON Web Key (JWK)
 
@@ -94,7 +95,7 @@ func (r *KeycloakJwk) ComputePublicRsaKey() (rsa.PublicKey, app_errors.AppError)
 }
 
 
-
+// DTOs
 
 // Keycloack TokenResponse
 type TokenResponse struct {
@@ -106,4 +107,20 @@ type TokenResponse struct {
     NotBeforePolicy  int64     `json:"not-before-policy"`
     SessionState     string    `json:"session_state"`
     Scope            string    `json:"scope"`
+}
+
+// KcCreateUserRequest
+type KcCredentials struct {
+	Type string  `json:"type" binding:"required"`
+	Value string `json:"value" binding:"required"`
+}
+type KcCreateUserRequest struct {
+	Username string `json:"username" binding:"required"`
+	FirstName string `json:"firstName"`
+	LastName string `json:"lastName"`
+	Email string	`json:"email"`
+	Enabled bool	`json:"enabled" binding:"required"`
+	Credentials []KcCredentials `json:"credentials" binding:"required"`
+
+
 }

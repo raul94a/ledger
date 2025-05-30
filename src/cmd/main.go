@@ -5,11 +5,12 @@ import (
 	"log/slog"
 	"os"
 	handlers "src/api/handlers"
+	api_keycloak "src/api/keycloak"
+	"src/api/middleware"
 	services "src/api/service"
 
 	// middleware "src/api/middleware"
 	"src/repositories"
-
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
@@ -67,7 +68,15 @@ func initializer() {
 // @BasePath /
 func main() {
 	initializer()
+	keycloakClient := api_keycloak.BuildKeycloakClientFromEnv()
 	router := gin.Default()
+	/**
+	* Middlewares
+	*/
+	
+	router.Use(func(ctx *gin.Context) {
+		middleware.KeycloakClientMiddleware(ctx, keycloakClient)
+	})
 	/**
 	 * HANDLERS
 	 */
@@ -77,6 +86,9 @@ func main() {
 		ClientService: services.NewClientService(repositoryWrapper.ClientRepository, repositoryWrapper.RegistryAccountOtpRepository),
 	}
 	accountHandler := handlers.IAccountHandler{
+		KeycloakClient: keycloakClient,
+		AccountService: services.NewAccountService(*repositoryWrapper),
+		ClientRepository: repositoryWrapper.ClientRepository,
 		AccountRepository:     repositoryWrapper.AccountRepository,
 		TransactionRepository: repositoryWrapper.TransactionRepository,
 		RegistryAccountOtpRepository: repositoryWrapper.RegistryAccountOtpRepository,
@@ -86,13 +98,23 @@ func main() {
 		AccountRepository:     repositoryWrapper.AccountRepository,
 		TransactionRepository: repositoryWrapper.TransactionRepository,
 	}
+
+	authHandler := handlers.IAuthorizationHandler {
+		KeycloakClient: keycloakClient,
+	}
+	
 	/**
 	 * ROUTES
 	 */
 	router.GET("/")
+	authorization := router.Group("/authorization")
+	{
+		authorization.POST("/login", authHandler.Authorization)
+	}
 	accounts := router.Group("/accounts")
 	{
 		accounts.POST("", accountHandler.CreateAccount)
+		accounts.POST("/completeNewUserRegistration", accountHandler.CompleteNewUserRegistration)
 		accounts.GET("/:client_id", accountHandler.FetchAccounts)
 	}
 	clients := router.Group("/clients")

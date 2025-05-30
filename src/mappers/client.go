@@ -1,12 +1,11 @@
 package mappers
 
-import
-(	
-	"time"
-	"fmt"
+import (
 	"database/sql"
+	"fmt"
 	clientdto "src/api/dto"
 	cliententity "src/domain/client"
+	"time"
 )
 
 func ToClientEntity(client clientdto.CreateClientRequest) (cliententity.ClientEntity, error) {

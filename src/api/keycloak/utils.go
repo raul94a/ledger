@@ -10,7 +10,7 @@ import (
 
 var CacheJwkSet = &KeycloakJwkSet{Keys: make([]KeycloakJwk, 0)}
 
-func GetRsaPublicKey() (*rsa.PublicKey, app_errors.AppError) {
+func (k KeycloakClient) GetRsaPublicKey() (*rsa.PublicKey, app_errors.AppError) {
 	if len(CacheJwkSet.Keys) != 0 {
 		// fmt.Println("GET JWK FROM CACHE ", CacheJwkSet)
 		signingJwk, err := CacheJwkSet.GetSigJwk()
@@ -25,7 +25,7 @@ func GetRsaPublicKey() (*rsa.PublicKey, app_errors.AppError) {
 	} else {
 		// fmt.Println("GET JWK FROM REMOTE")
 
-		jwkSet, err := GetJwkCerts()
+		jwkSet, err := k.GetJwkCerts()
 		CacheJwkSet = &jwkSet
 		if err != nil {
 			return nil, err
@@ -42,8 +42,8 @@ func GetRsaPublicKey() (*rsa.PublicKey, app_errors.AppError) {
 	}
 }
 
-func VerifyToken(token string) (*jwt.Token, app_errors.AppError) {
-	rsaKey, err := GetRsaPublicKey()
+func (k KeycloakClient) VerifyToken(token string) (*jwt.Token, app_errors.AppError) {
+	rsaKey, err := k.GetRsaPublicKey()
 	if err != nil {
 		return nil, err
 	}
