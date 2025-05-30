@@ -10,7 +10,7 @@ import (
 )
 
 type RegistryAccountOtpRepository interface {
-	Fetch(ctx context.Context, clientID int) (otp_entity.RegisterAccountsOTP, errors.AppError)
+	FetchByClientId(ctx context.Context, clientID int) (otp_entity.RegisterAccountsOTP, errors.AppError)
 	Insert(ctx context.Context, tx *sql.Tx, otpEntity *otp_entity.RegisterAccountsOTP) errors.AppError
 	Update(ctx context.Context, tx *sql.Tx, otpEntityId int) errors.AppError
 }
@@ -30,16 +30,17 @@ func NewRegistryAccountOtpRepository(db *sql.DB, logger *slog.Logger) RegistryAc
 	return &registryAccountOtpRepository{db: db, logger: logger}
 }
 
-func (r *registryAccountOtpRepository) Fetch(ctx context.Context, clientId int) (otp_entity.RegisterAccountsOTP, errors.AppError) {
+func (r *registryAccountOtpRepository) FetchByClientId(ctx context.Context, clientId int) (otp_entity.RegisterAccountsOTP, errors.AppError) {
 	query := `
 	 SELECT * FROM register_accounts_otp where client_id = $1
 	`
 	var registerAccountOtpEntity otp_entity.RegisterAccountsOTP = otp_entity.RegisterAccountsOTP{}
 	sqlRow := r.db.QueryRowContext(ctx, query, clientId)
-	err := sqlRow.Scan(&registerAccountOtpEntity.ID,
+	err := sqlRow.Scan(
 		&registerAccountOtpEntity.ID,
 		&registerAccountOtpEntity.ClientID,
 		&registerAccountOtpEntity.OTP,
+		&registerAccountOtpEntity.Validated,
 		&registerAccountOtpEntity.CreatedAt,
 		&registerAccountOtpEntity.UpdatedAt)
 	if err == sql.ErrNoRows {

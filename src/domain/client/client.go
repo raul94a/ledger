@@ -24,6 +24,7 @@ type ClientEntity struct {
     Telephone     string         `db:"telephone" json:"telephone"`
     CreatedAt     time.Time      `db:"created_at" json:"created_at"`
     UpdatedAt     time.Time      `db:"updated_at" json:"updated_at"`
+    KcUserId      sql.NullInt64  `db:"kc_user_id"`
 }
 
 func ScanClientEntity(r *sql.Rows, client *ClientEntity) error {

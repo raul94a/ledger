@@ -15,6 +15,7 @@ type AccountRepository interface {
 	FetchAccountIdByAccountNumber(ctx context.Context, iban string) (*int, errors.AppError)
 	FetchAccountsByClient(ctx context.Context, clientID int) ([]accountentity.AccountEntity, errors.AppError)
 	InsertAccount(ctx context.Context, account *accountentity.AccountEntity) errors.AppError
+	InsertAccountTx(ctx context.Context, tx *sql.Tx, account *accountentity.AccountEntity) errors.AppError
 	createAccountBalance(ctx context.Context, tx *sql.Tx, account *accountentity.AccountEntity) errors.AppError
 }
 
@@ -138,15 +139,8 @@ func (r *accountRepository) createAccountBalance(ctx context.Context, tx *sql.Tx
 	return nil
 }
 
-func (r *accountRepository) InsertAccount(ctx context.Context, account *accountentity.AccountEntity) errors.AppError {
-	tx, txErr := r.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: false, Isolation: 0})
-
-	if txErr != nil {
-		errorStr := fmt.Sprint("Error creating Tx for Account Insertion. AccountID: %d", account.ID)
-		r.logger.Error(errorStr)
-		return &errors.ErrInternalServer{Reason: txErr}
-	}
-
+func (r *accountRepository) InsertAccountTx(ctx context.Context, tx *sql.Tx,account *accountentity.AccountEntity) errors.AppError {
+	
 	query := `
 	INSERT INTO accounts (
             client_id, account_number
@@ -169,6 +163,37 @@ func (r *accountRepository) InsertAccount(ctx context.Context, account *accounte
 		tx.Rollback()
 		return &errors.ErrInternalServer{Reason: err}
 	}
-	tx.Commit()
+	return nil
+}
+
+
+func (r *accountRepository) InsertAccount(ctx context.Context, account *accountentity.AccountEntity) errors.AppError {
+	
+	query := `
+	INSERT INTO accounts (
+            client_id, account_number
+        ) VALUES ($1, $2) 
+		RETURNING id,created_at, updated_at`
+
+	// Execute the query and scan the returned values into the client struct
+	tx, txError := r.db.BeginTx(ctx,&sql.TxOptions{ReadOnly: false})
+	if txError != nil {
+		return &errors.ErrInternalServer{Reason: txError}
+	}
+	err := tx.QueryRowContext(ctx, query,
+		account.ClientID,
+		account.AccountNumber,
+	).Scan(&account.ID, &account.CreatedAt, &account.UpdatedAt)
+
+	if err != nil {
+		r.logger.Error("Error occurred inserting account: " + err.Error() + " .ClientID: " + fmt.Sprint(account.ClientID))
+		tx.Rollback()
+		return &errors.ErrInternalServer{Reason: err}
+	}
+	err = r.createAccountBalance(ctx,tx,account)
+	if err != nil {
+		tx.Rollback()
+		return &errors.ErrInternalServer{Reason: err}
+	}
 	return nil
 }

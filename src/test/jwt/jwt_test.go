@@ -48,10 +48,11 @@ func TestValidateKeycloakToken(t *testing.T) {
     //     }
     // }()
     godotenv.Load("../../.env")
+	client := api_keycloak.BuildKeycloakClientFromEnv()
 	// Parsear la clave JWK
-	tokenResponse, _ := api_keycloak.AuthAdminUser()
+	tokenResponse, _ := client.AuthAdminUser()
 	tokenString := tokenResponse.AccessToken
-	jwks, _ := api_keycloak.GetJwkCerts()
+	jwks, _ := client.GetJwkCerts()
 	jwkKey, _ := jwks.GetSigJwk()
 	rsaKey,_ := jwkKey.ComputePublicRsaKey()
    

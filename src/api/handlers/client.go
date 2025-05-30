@@ -17,7 +17,7 @@ type ClientHandler interface {
 type IClientHandler struct {
 	ClientRepository             repositories.ClientRepository
 	RegistryAccountOtpRepository repositories.RegistryAccountOtpRepository
-	ClientService				 services.ClientService
+	ClientService                services.ClientService
 }
 
 // @Summary Crea un nuevo cliente
@@ -38,7 +38,7 @@ func (h *IClientHandler) CreateClient(c *gin.Context) {
 	clientResponse, err := h.ClientService.CreateClient(client)
 	if err != nil {
 		fmt.Println("Error ", err.Error())
-		err.JsonError(c)		
+		err.JsonError(c)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{

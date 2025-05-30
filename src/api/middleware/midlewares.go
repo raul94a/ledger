@@ -1,11 +1,12 @@
 package middleware
 
 import (
-	"github.com/gin-gonic/gin"
 	"log"
 	api_keycloak "src/api/keycloak"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 func LoggerMiddleware() gin.HandlerFunc {
@@ -30,6 +31,11 @@ func AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
+func KeycloakClientMiddleware(c *gin.Context, client api_keycloak.KeycloakClient) {
+	c.Set("keycloak_client", client)
+	c.Next()
+}
+
 func AuthenticationMiddleware(c *gin.Context) {
 	accessToken := c.GetHeader("Authorization")
 	splittedToken := strings.Split(accessToken, " ")
@@ -37,8 +43,19 @@ func AuthenticationMiddleware(c *gin.Context) {
 		c.AbortWithStatusJSON(400, gin.H{"error": "Bad request"})
 		return
 	}
+	keycloakClient, exists := c.Get("keycloak_client")
+
+	if !exists {
+		c.AbortWithStatus(500)
+		return
+	}
+	client, ok := keycloakClient.(api_keycloak.KeycloakClient)
+	if !ok {
+		c.AbortWithStatus(500)
+		return
+	}
 	token := splittedToken[1]
-	parsedToken, err := api_keycloak.VerifyToken(token)
+	parsedToken, err := client.VerifyToken(token)
 	if err != nil {
 		err.JsonError(c)
 		return
@@ -53,7 +70,7 @@ func AuthenticationMiddleware(c *gin.Context) {
 		return
 	}
 	// pass the token to the next middleware
-	c.Set("token",parsedToken)
+	c.Set("token", parsedToken)
 	c.Next()
 
 }
