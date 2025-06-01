@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	ledgerentity "src/domain/ledger"
+	pagination "src/domain/pagination"
 	transaction_entity "src/domain/transaction"
 	errors "src/errors"
 	validators "src/validators"
@@ -20,6 +21,7 @@ type TransactionRepository interface {
 	InsertTransaction(ctx context.Context, tx *sql.Tx, transaction *transaction_entity.TransactionEntity) errors.AppError
 	InsertLedgerEntry(ctx context.Context, tx *sql.Tx, ledgerTransaction *ledgerentity.LedgerTransaction) errors.AppError
 	InsertTransactionLedgerTx(ctx context.Context, transaction *transaction_entity.TransactionEntity) errors.AppError
+	GetTransactions(ctx context.Context, accountId,page, count int) (pagination.Pagination[transaction_entity.TransactionEntity], errors.AppError)
 }
 
 type transactionRepository struct {
@@ -255,4 +257,58 @@ func (r *transactionRepository) FetchAccountBalance(ctx context.Context, tx *sql
 	}
 	return balance, nil
 
+}
+
+func (r *transactionRepository) GetTransactions(ctx context.Context, accountID, page, count int) (pagination.Pagination[transaction_entity.TransactionEntity], errors.AppError) {
+	queryTotal := `SELECT count(id) from transactions where account_id = $1`
+	if page < 1 || count < 1 {
+		return pagination.Pagination[transaction_entity.TransactionEntity]{}, &errors.ErrBadRequest{}
+	}
+	
+	var totalRows *int
+	err := r.db.QueryRowContext(ctx, queryTotal, accountID).Scan(&totalRows)
+	if err != nil {
+		return pagination.Pagination[transaction_entity.TransactionEntity]{}, &errors.ErrInternalServer{}
+	}
+	lastPage := *totalRows / count
+	if *totalRows % count  != 0 {
+		lastPage++
+	}
+	query := `
+	 SELECT * from transactions order by created_at desc limit $1 offset $2 where account_id = $3
+	`
+	var transactions []transaction_entity.TransactionEntity = make([]transaction_entity.TransactionEntity, 0)
+	rows, err := r.db.QueryContext(ctx, query, count, page*count, accountID)
+	if err != nil {
+		return pagination.Pagination[transaction_entity.TransactionEntity]{}, &errors.ErrInternalServer{}
+	}
+	for rows.Next(){
+		var entity *transaction_entity.TransactionEntity 
+		err := rows.Scan(
+			&entity.ID,
+			&entity.Type,
+			&entity.Amount,
+			&entity.AccountID,
+			&entity.CreatedAt,
+			&entity.UpdatedAt,
+		)
+		transactions = append(transactions, *entity)
+		if err != nil {
+			return pagination.Pagination[transaction_entity.TransactionEntity]{},&errors.ErrInternalServer{}
+		}
+	}
+
+	nrTransactions := len(transactions)
+	if nrTransactions < count {
+		count = nrTransactions
+	}
+
+	pagination := pagination.Pagination[transaction_entity.TransactionEntity]{
+		Page: page,
+		LastPage: lastPage,
+		Count: count,
+		Items: transactions,
+	}
+
+	return pagination, nil
 }
