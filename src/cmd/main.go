@@ -124,6 +124,7 @@ func main() {
 	}
 	transactions := router.Group("/transactions")
 	{
+		transactions.GET("/:account_id", transactionHandler.GetTransactions)	
 		transactions.POST("", transactionHandler.PerformTransaction)
 	}
 	router.Run() // Listen on :8080 by default

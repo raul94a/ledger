@@ -21,7 +21,7 @@ type TransactionRepository interface {
 	InsertTransaction(ctx context.Context, tx *sql.Tx, transaction *transaction_entity.TransactionEntity) errors.AppError
 	InsertLedgerEntry(ctx context.Context, tx *sql.Tx, ledgerTransaction *ledgerentity.LedgerTransaction) errors.AppError
 	InsertTransactionLedgerTx(ctx context.Context, transaction *transaction_entity.TransactionEntity) errors.AppError
-	GetTransactions(ctx context.Context, accountId,page, count int) (pagination.Pagination[transaction_entity.TransactionEntity], errors.AppError)
+	GetTransactions(ctx context.Context, accountId, page, count int) (pagination.Pagination[transaction_entity.TransactionEntity], errors.AppError)
 }
 
 type transactionRepository struct {
@@ -42,7 +42,7 @@ func NewTransactionRepository(db *sql.DB, logger *slog.Logger) TransactionReposi
 func (r *transactionRepository) InsertTransaction(ctx context.Context, tx *sql.Tx, transaction *transaction_entity.TransactionEntity) errors.AppError {
 	query := `
         INSERT INTO transactions (
-            account_id, to_account_id, amount, type
+            account_id, to_account_id, amount, type, to_account_number
         ) VALUES ($1, $2, $3, $4)
         RETURNING id, created_at, updated_at`
 
@@ -53,6 +53,7 @@ func (r *transactionRepository) InsertTransaction(ctx context.Context, tx *sql.T
 		transaction.ToAccountID,
 		transaction.Amount,
 		transaction.Type,
+		transaction.ToAccountNumber,
 	).Scan(&transaction.ID, &transaction.CreatedAt, &transaction.UpdatedAt)
 
 	if err != nil {
@@ -262,39 +263,49 @@ func (r *transactionRepository) FetchAccountBalance(ctx context.Context, tx *sql
 func (r *transactionRepository) GetTransactions(ctx context.Context, accountID, page, count int) (pagination.Pagination[transaction_entity.TransactionEntity], errors.AppError) {
 	queryTotal := `SELECT count(id) from transactions where account_id = $1`
 	if page < 1 || count < 1 {
+
 		return pagination.Pagination[transaction_entity.TransactionEntity]{}, &errors.ErrBadRequest{}
 	}
-	
+
 	var totalRows *int
 	err := r.db.QueryRowContext(ctx, queryTotal, accountID).Scan(&totalRows)
 	if err != nil {
+		r.logger.Error(fmt.Sprintf("Error %s", err.Error()))
 		return pagination.Pagination[transaction_entity.TransactionEntity]{}, &errors.ErrInternalServer{}
 	}
 	lastPage := *totalRows / count
-	if *totalRows % count  != 0 {
+	if *totalRows%count != 0 {
 		lastPage++
 	}
+	offset := 0
+	if page > 1 {
+		offset = count * (page - 1)
+	}
 	query := `
-	 SELECT * from transactions order by created_at desc limit $1 offset $2 where account_id = $3
+	 SELECT * from transactions where account_id = $1 order by created_at desc limit $2 offset $3 
 	`
 	var transactions []transaction_entity.TransactionEntity = make([]transaction_entity.TransactionEntity, 0)
-	rows, err := r.db.QueryContext(ctx, query, count, page*count, accountID)
+	rows, err := r.db.QueryContext(ctx, query, accountID, count,offset)
 	if err != nil {
+		r.logger.Error(fmt.Sprintf("Error %s", err.Error()))
 		return pagination.Pagination[transaction_entity.TransactionEntity]{}, &errors.ErrInternalServer{}
 	}
-	for rows.Next(){
-		var entity *transaction_entity.TransactionEntity 
+	for rows.Next() {
+		var entity transaction_entity.TransactionEntity
 		err := rows.Scan(
 			&entity.ID,
+			&entity.AccountID,
 			&entity.Type,
 			&entity.Amount,
-			&entity.AccountID,
+			&entity.ToAccountID,
 			&entity.CreatedAt,
 			&entity.UpdatedAt,
+			&entity.ToAccountNumber,
 		)
-		transactions = append(transactions, *entity)
+		transactions = append(transactions, entity)
 		if err != nil {
-			return pagination.Pagination[transaction_entity.TransactionEntity]{},&errors.ErrInternalServer{}
+			r.logger.Error(fmt.Sprintf("Error %s", err.Error()))
+			return pagination.Pagination[transaction_entity.TransactionEntity]{}, &errors.ErrInternalServer{}
 		}
 	}
 
@@ -304,10 +315,10 @@ func (r *transactionRepository) GetTransactions(ctx context.Context, accountID, 
 	}
 
 	pagination := pagination.Pagination[transaction_entity.TransactionEntity]{
-		Page: page,
+		Page:     page,
 		LastPage: lastPage,
-		Count: count,
-		Items: transactions,
+		Count:    count,
+		Items:    transactions,
 	}
 
 	return pagination, nil
