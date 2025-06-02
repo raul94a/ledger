@@ -1,18 +1,22 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
 	dto "src/api/dto"
 	trasnactionentity "src/domain/transaction"
+	mappers "src/mappers"
 	repositories "src/repositories"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
 type TransactionHandler interface {
 	PerformTransaction(c *gin.Context)
+	GetTransactions(c *gin.Context)
 }
 
 type ITransactionHandler struct {
@@ -104,4 +108,41 @@ func (h *ITransactionHandler) PerformTransaction(c *gin.Context) {
 		UpdatedAt:       transactionEntity.UpdatedAt,
 	}
 	c.JSON(http.StatusOK, gin.H{"transaction": transactionDto})
+}
+
+func (h *ITransactionHandler) GetTransactions(c *gin.Context) {
+	accountId := c.Param("account_id")
+	countStr := c.Query("count")
+	pageStr := c.Query("page")
+
+	// token validation, account id validation
+	accountIdInt, err := strconv.ParseInt(accountId, 0, 32)
+	if err != nil {
+		c.AbortWithError(400, err)
+		return
+	}
+	countInt, err := strconv.ParseInt(countStr, 0, 32)
+	if err != nil {
+		c.AbortWithError(400, err)
+		return
+	}
+	pageInt, err := strconv.ParseInt(pageStr, 0, 32)
+	if err != nil {
+		c.AbortWithError(400, err)
+		return
+	}
+
+	pagination, error := h.TransactionRepository.GetTransactions(context.Background(), int(accountIdInt), int(pageInt), int(countInt))
+	if error != nil {
+		error.JsonError(c)
+		return
+	}
+	paginationDto, err := mappers.ToPaginationTransactionDto(pagination)
+	if err != nil {
+		c.AbortWithError(500, err)
+		return
+	}
+	c.JSON(http.StatusOK,paginationDto)
+
+	// fetchFromRepository
 }

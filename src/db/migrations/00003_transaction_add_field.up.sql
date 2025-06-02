@@ -1,0 +1,1 @@
+alter table transactions ADD COLUMN to_account_number varchar(255);
