@@ -119,6 +119,7 @@ func main() {
 	}
 	clients := router.Group("/clients")
 	{
+		clients.GET("/:identification",clientHandler.GetClientByIdentification)
 		clients.POST("", clientHandler.CreateClient)
 
 	}
