@@ -114,6 +114,9 @@ type KcCredentials struct {
 	Type string  `json:"type" binding:"required"`
 	Value string `json:"value" binding:"required"`
 }
+
+
+
 type KcCreateUserRequest struct {
 	Username string `json:"username" binding:"required"`
 	FirstName string `json:"firstName"`
@@ -121,6 +124,9 @@ type KcCreateUserRequest struct {
 	Email string	`json:"email"`
 	Enabled bool	`json:"enabled" binding:"required"`
 	Credentials []KcCredentials `json:"credentials" binding:"required"`
+	Attributes  map[string][]string `json:"attributes"`
+}
 
-
+func (att KcCreateUserRequest) AddAttribute(k,v string){
+	att.Attributes[k] = []string{v}
 }
