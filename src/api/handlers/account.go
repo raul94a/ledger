@@ -11,6 +11,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"fmt"
 )
 
 type AccountHandler interface {
@@ -115,14 +116,17 @@ func (h *IAccountHandler) CompleteNewUserRegistration(c *gin.Context) {
 	}
 	credentials := make([]api_keycloak.KcCredentials, 0)
 	credentials = append(credentials, credential)
-	err = h.KeycloakClient.CreateUser(api_keycloak.KcCreateUserRequest{
+	kcCreateUserRequest := api_keycloak.KcCreateUserRequest{
 		Username:    completeClientRegistration.Identification,
 		FirstName:   clientEntity.Name,
 		LastName:    clientEntity.Surname1,
 		Email:       clientEntity.Email,
 		Enabled:     true,
 		Credentials: credentials,
-	})
+		Attributes: map[string][]string{},
+	}
+	kcCreateUserRequest.AddAttribute("client_id", fmt.Sprint(clientEntity.ID))
+	err = h.KeycloakClient.CreateUser(kcCreateUserRequest)
 	if err != nil {
 		err.JsonError(c)
 		return
