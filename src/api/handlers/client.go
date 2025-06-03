@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	clientdto "src/api/dto"
@@ -12,6 +13,7 @@ import (
 
 type ClientHandler interface {
 	CreateClient(c *gin.Context)
+	GetClientByIdentification(c *gin.Context)
 }
 
 type IClientHandler struct {
@@ -45,4 +47,20 @@ func (h *IClientHandler) CreateClient(c *gin.Context) {
 		"message": "Cliente creado exitosamente",
 		"client":  clientResponse,
 	})
+}
+
+func (h *IClientHandler) GetClientByIdentification(c *gin.Context) {
+	identification := c.Param("identification")
+	
+	// validation with jwt
+
+	//
+
+	clientResponse, err := h.ClientRepository.FetchClientByIdentification(context.Background(),identification)
+	if err != nil {
+		fmt.Println("Error ", err.Error())
+		err.JsonError(c)
+		return
+	}
+	c.JSON(http.StatusOK, clientResponse)
 }
