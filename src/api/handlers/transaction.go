@@ -132,6 +132,9 @@ func (h *ITransactionHandler) GetTransactions(c *gin.Context) {
 		return
 	}
 
+	// Pre-validation
+	// account_id belongs to clientId ? 
+
 	pagination, error := h.TransactionRepository.GetTransactions(context.Background(), int(accountIdInt), int(pageInt), int(countInt))
 	if error != nil {
 		error.JsonError(c)

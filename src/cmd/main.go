@@ -3,14 +3,17 @@ package main
 import (
 	"log"
 	"log/slog"
+	"net/http"
 	"os"
 	handlers "src/api/handlers"
 	api_keycloak "src/api/keycloak"
 	"src/api/middleware"
 	services "src/api/service"
+	"strconv"
 
 	// middleware "src/api/middleware"
 	"src/repositories"
+
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
@@ -25,11 +28,11 @@ func LoadRepositoryWrapper() {
 	transactionRepository := repositories.NewTransactionRepository(db.DB, logger)
 	accountRepository := repositories.NewAccountRepository(db.DB, logger)
 	clientRepository := repositories.NewClientRepository(db.DB, logger)
-	registryAccountOtpRepository := repositories.NewRegistryAccountOtpRepository(db.DB,logger)
+	registryAccountOtpRepository := repositories.NewRegistryAccountOtpRepository(db.DB, logger)
 	repositoryWrapper = &repositories.RepositoryWrapper{
-		ClientRepository:      clientRepository,
-		AccountRepository:     accountRepository,
-		TransactionRepository: transactionRepository,
+		ClientRepository:             clientRepository,
+		AccountRepository:            accountRepository,
+		TransactionRepository:        transactionRepository,
 		RegistryAccountOtpRepository: registryAccountOtpRepository,
 	}
 }
@@ -70,27 +73,36 @@ func main() {
 	initializer()
 	keycloakClient := api_keycloak.BuildKeycloakClientFromEnv()
 	router := gin.Default()
+
 	/**
 	* Middlewares
-	*/
-	
+	 */
+
 	router.Use(func(ctx *gin.Context) {
 		middleware.KeycloakClientMiddleware(ctx, keycloakClient)
+		middleware.RepositoryWrapperMiddleware(ctx, repositoryWrapper)
 	})
+
+	authHandlerMiddleware := func() gin.HandlerFunc {
+		return func(c *gin.Context) {
+			middleware.AuthorizationMiddleware(c)
+		}
+	}
+
 	/**
 	 * HANDLERS
 	 */
 	clientHandler := handlers.IClientHandler{
-		ClientRepository: repositoryWrapper.ClientRepository,
+		ClientRepository:             repositoryWrapper.ClientRepository,
 		RegistryAccountOtpRepository: repositoryWrapper.RegistryAccountOtpRepository,
-		ClientService: services.NewClientService(repositoryWrapper.ClientRepository, repositoryWrapper.RegistryAccountOtpRepository),
+		ClientService:                services.NewClientService(repositoryWrapper.ClientRepository, repositoryWrapper.RegistryAccountOtpRepository),
 	}
 	accountHandler := handlers.IAccountHandler{
-		KeycloakClient: keycloakClient,
-		AccountService: services.NewAccountService(*repositoryWrapper),
-		ClientRepository: repositoryWrapper.ClientRepository,
-		AccountRepository:     repositoryWrapper.AccountRepository,
-		TransactionRepository: repositoryWrapper.TransactionRepository,
+		KeycloakClient:               keycloakClient,
+		AccountService:               services.NewAccountService(*repositoryWrapper),
+		ClientRepository:             repositoryWrapper.ClientRepository,
+		AccountRepository:            repositoryWrapper.AccountRepository,
+		TransactionRepository:        repositoryWrapper.TransactionRepository,
 		RegistryAccountOtpRepository: repositoryWrapper.RegistryAccountOtpRepository,
 	}
 
@@ -99,10 +111,10 @@ func main() {
 		TransactionRepository: repositoryWrapper.TransactionRepository,
 	}
 
-	authHandler := handlers.IAuthorizationHandler {
+	authHandler := handlers.IAuthorizationHandler{
 		KeycloakClient: keycloakClient,
 	}
-	
+
 	/**
 	 * ROUTES
 	 */
@@ -113,19 +125,45 @@ func main() {
 	}
 	accounts := router.Group("/accounts")
 	{
-		accounts.POST("", accountHandler.CreateAccount)
+		accounts.POST("", authHandlerMiddleware(), accountHandler.CreateAccount)
 		accounts.POST("/completeNewUserRegistration", accountHandler.CompleteNewUserRegistration)
-		accounts.GET("/:client_id", accountHandler.FetchAccounts)
+		// Verificar el client ID en el middleware de auth
+		accounts.GET("/:client_id", authHandlerMiddleware(), func(c *gin.Context) {
+			clientIDStr := c.Param("client_id")
+
+			clientID, err := strconv.Atoi(clientIDStr)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid identifier"})
+				return
+			}
+			middleware.AuthenticateUserByClientIdMiddleware(c, clientID)
+		}, accountHandler.FetchAccounts)
 	}
 	clients := router.Group("/clients")
 	{
-		clients.GET("/:identification",clientHandler.GetClientByIdentification)
+		// Verificar que identificacion corresponde al clientID
+		clients.GET("/:identification", authHandlerMiddleware(), func(c *gin.Context) {
+			identification := c.Param("identification")
+			middleware.AuthenticateUserByIdentificationMiddleware(c, identification)
+		}, clientHandler.GetClientByIdentification)
+		// Este endpoint debe recibir algún token especial para la autorización
 		clients.POST("", clientHandler.CreateClient)
 
 	}
-	transactions := router.Group("/transactions")
+	transactions := router.Group("/transactions", authHandlerMiddleware())
 	{
-		transactions.GET("/:account_id", transactionHandler.GetTransactions)	
+		// verificar que la cuenta corresponda al cliente
+		transactions.GET("/:account_id", func(c *gin.Context) {
+			accountIdStr := c.Param("account_id")
+
+			accountID, err := strconv.Atoi(accountIdStr)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid identifier"})
+				return
+			}
+			middleware.AuthenticateUserByAccountIdMiddleware(c, accountID)
+		}, transactionHandler.GetTransactions)
+		// verificar que la cuenta corresponda al cliente
 		transactions.POST("", transactionHandler.PerformTransaction)
 	}
 	router.Run() // Listen on :8080 by default
