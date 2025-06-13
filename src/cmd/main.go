@@ -1,18 +1,16 @@
 package main
 
 import (
+	"log"
+	"log/slog"
+	"os"
+	api_keycloak "src/api/keycloak"
+	app_router "src/api/router"
+	"src/repositories"
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
-	"log"
-	"log/slog"
-	"os"
-	handlers "src/api/handlers"
-	api_keycloak "src/api/keycloak"
-	"src/api/middleware"
-	services "src/api/service"
-	"src/repositories"
 )
 
 var logger *slog.Logger
@@ -69,99 +67,12 @@ func main() {
 	keycloakClient := api_keycloak.BuildKeycloakClientFromEnv()
 	router := gin.Default()
 
-	/**
-	* Middlewares
-	 */
-
-	router.Use(func(ctx *gin.Context) {
-		middleware.KeycloakClientMiddleware(ctx, keycloakClient)
-
-	})
-
-	router.Use(func(ctx *gin.Context) {
-		middleware.RepositoryWrapperMiddleware(ctx, repositoryWrapper)
-	})
-
-	authHandlerMiddleware := func() gin.HandlerFunc {
-		return func(c *gin.Context) {
-			middleware.AuthorizationMiddleware(c)
-		}
+	appRouter := app_router.AppRouter{
+		KeycloakClient: &keycloakClient,
+		RepositoryWrapper: repositoryWrapper,
 	}
 
-	/**
-	 * HANDLERS
-	 */
-	clientHandler := handlers.IClientHandler{
-		ClientRepository:             repositoryWrapper.ClientRepository,
-		RegistryAccountOtpRepository: repositoryWrapper.RegistryAccountOtpRepository,
-		ClientService:                services.NewClientService(repositoryWrapper.ClientRepository, repositoryWrapper.RegistryAccountOtpRepository),
-	}
-	accountHandler := handlers.IAccountHandler{
-		KeycloakClient:               keycloakClient,
-		AccountService:               services.NewAccountService(*repositoryWrapper),
-		ClientRepository:             repositoryWrapper.ClientRepository,
-		AccountRepository:            repositoryWrapper.AccountRepository,
-		TransactionRepository:        repositoryWrapper.TransactionRepository,
-		RegistryAccountOtpRepository: repositoryWrapper.RegistryAccountOtpRepository,
-	}
-
-	transactionHandler := handlers.ITransactionHandler{
-		AccountRepository:     repositoryWrapper.AccountRepository,
-		TransactionRepository: repositoryWrapper.TransactionRepository,
-	}
-
-	authHandler := handlers.IAuthorizationHandler{
-		KeycloakClient: keycloakClient,
-	}
-
-	/**
-	 * ROUTES
-	 */
-	router.GET("/")
-	authorization := router.Group("/authorization")
-	{
-		authorization.POST("/login", authHandler.Authorization)
-	}
-	accounts := router.Group("/accounts")
-	{
-		accounts.POST("", authHandlerMiddleware(), accountHandler.CreateAccount)
-		accounts.POST("/completeNewUserRegistration", accountHandler.CompleteNewUserRegistration)
-		// Verificar el client ID en el middleware de auth
-		accounts.GET(
-			"/:client_id",
-			authHandlerMiddleware(),
-			middleware.AuthenticationByClientIdHandler(),
-			accountHandler.FetchAccounts,
-		)
-	}
-	clients := router.Group("/clients")
-	{
-		// Verificar que identificacion corresponde al clientID
-		clients.GET(
-			"/:identification",
-			authHandlerMiddleware(),
-			middleware.AuthenticateUserByIdentificationHandler(),
-			clientHandler.GetClientByIdentification,
-		)
-		// Este endpoint debe recibir algún token especial para la autorización
-		clients.POST("", clientHandler.CreateClient)
-
-	}
-	transactions := router.Group("/transactions", authHandlerMiddleware())
-	{
-		// verificar que la cuenta corresponda al cliente
-		transactions.GET(
-			"/:account_id",
-			middleware.AuthenticateByAccountIdHandler(),
-			transactionHandler.GetTransactions,
-		)
-		// verificar que la cuenta corresponda al cliente
-		transactions.POST(
-			"",
-		    middleware.AuthenticatePerformTransactionHandler(),
-			transactionHandler.PerformTransaction,
-		)
-	}
+	appRouter.BuildRoutes(router)
 	router.Run() // Listen on :8080 by default
 	defer db.Close()
 }
