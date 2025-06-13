@@ -43,7 +43,7 @@ func (r *transactionRepository) InsertTransaction(ctx context.Context, tx *sql.T
 	query := `
         INSERT INTO transactions (
             account_id, to_account_id, amount, type, to_account_number
-        ) VALUES ($1, $2, $3, $4)
+        ) VALUES ($1, $2, $3, $4, $5)
         RETURNING id, created_at, updated_at`
 
 	// Execute the query and scan the returned values into the client struct
@@ -57,8 +57,10 @@ func (r *transactionRepository) InsertTransaction(ctx context.Context, tx *sql.T
 	).Scan(&transaction.ID, &transaction.CreatedAt, &transaction.UpdatedAt)
 
 	if err != nil {
-		r.logger.Error("Error occurred while inserting transaction: %s", err.Error())
-		r.logger.Error("Account id: %s, amount: %v, type: %s", transaction.AccountID, transaction.Amount, transaction.Type)
+		errorString := fmt.Sprintf("Error occurred while inserting transaction: %s", err.Error())
+		r.logger.Error(errorString)
+		errorString = fmt.Sprintf("Account id: %s, amount: %v, type: %s", transaction.AccountID, transaction.Amount, transaction.Type)
+		r.logger.Error(errorString)
 		return &errors.ErrInternalServer{Reason: err}
 	}
 	return nil
@@ -285,7 +287,7 @@ func (r *transactionRepository) GetTransactions(ctx context.Context, accountID, 
 	 SELECT * from transactions where account_id = $1 order by created_at desc limit $2 offset $3 
 	`
 	var transactions []transaction_entity.TransactionEntity = make([]transaction_entity.TransactionEntity, 0)
-	rows, err := r.db.QueryContext(ctx, query, accountID, count,offset)
+	rows, err := r.db.QueryContext(ctx, query, accountID, count, offset)
 	if err != nil {
 		r.logger.Error(fmt.Sprintf("Error %s", err.Error()))
 		return pagination.Pagination[transaction_entity.TransactionEntity]{}, &errors.ErrInternalServer{}

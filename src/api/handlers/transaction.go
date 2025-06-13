@@ -26,11 +26,19 @@ type ITransactionHandler struct {
 
 // POST
 func (h *ITransactionHandler) PerformTransaction(c *gin.Context) {
-	var performnTransactionDto dto.PerformTransactionDto
-	if error := c.ShouldBindJSON(&performnTransactionDto); error != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": error.Error()})
-		return
+	fmt.Println("Entering PerformTransaction Endpoint")
+	performTransactionDtoCtx, exists := c.Get("perform_transaction_dto")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "bad request"})
 	}
+	performnTransactionDto, ok := performTransactionDtoCtx.(dto.PerformTransactionDto)
+
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "bad request"})
+	}
+
+	fmt.Println("PerformnTrasnactionDto has been binded")
+
 	// pre-validation
 	//
 	// Is AccountID from a trusted source?
@@ -48,6 +56,8 @@ func (h *ITransactionHandler) PerformTransaction(c *gin.Context) {
 		}
 	}
 	if !isValidType {
+		fmt.Println("Transaction type is not valid")
+
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Transaction type is not valid"})
 		return
 	}
@@ -68,6 +78,8 @@ func (h *ITransactionHandler) PerformTransaction(c *gin.Context) {
 		fmt.Println("ACCOUNT NUMBER ", accNr)
 		id, err := h.AccountRepository.FetchAccountIdByAccountNumber(c, accNr)
 		if err != nil {
+			fmt.Println("Error fetching accountId by Account Number")
+
 			err.JsonError(c)
 			return
 		}
@@ -94,6 +106,7 @@ func (h *ITransactionHandler) PerformTransaction(c *gin.Context) {
 
 	err := h.TransactionRepository.InsertTransactionLedgerTx(c, &transactionEntity)
 	if err != nil {
+		fmt.Println("Error al insertar TransactionLedgerTx")
 
 		err.JsonError(c)
 		return
@@ -133,7 +146,7 @@ func (h *ITransactionHandler) GetTransactions(c *gin.Context) {
 	}
 
 	// Pre-validation
-	// account_id belongs to clientId ? 
+	// account_id belongs to clientId ?
 
 	pagination, error := h.TransactionRepository.GetTransactions(context.Background(), int(accountIdInt), int(pageInt), int(countInt))
 	if error != nil {
@@ -145,7 +158,7 @@ func (h *ITransactionHandler) GetTransactions(c *gin.Context) {
 		c.AbortWithError(500, err)
 		return
 	}
-	c.JSON(http.StatusOK,paginationDto)
+	c.JSON(http.StatusOK, paginationDto)
 
 	// fetchFromRepository
 }

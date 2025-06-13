@@ -1,23 +1,18 @@
 package main
 
 import (
+	"github.com/gin-gonic/gin"
+	"github.com/jmoiron/sqlx"
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 	"log"
 	"log/slog"
-	"net/http"
 	"os"
 	handlers "src/api/handlers"
 	api_keycloak "src/api/keycloak"
 	"src/api/middleware"
 	services "src/api/service"
-	"strconv"
-
-	// middleware "src/api/middleware"
 	"src/repositories"
-
-	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
-	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
 )
 
 var logger *slog.Logger
@@ -80,6 +75,10 @@ func main() {
 
 	router.Use(func(ctx *gin.Context) {
 		middleware.KeycloakClientMiddleware(ctx, keycloakClient)
+
+	})
+
+	router.Use(func(ctx *gin.Context) {
 		middleware.RepositoryWrapperMiddleware(ctx, repositoryWrapper)
 	})
 
@@ -128,24 +127,22 @@ func main() {
 		accounts.POST("", authHandlerMiddleware(), accountHandler.CreateAccount)
 		accounts.POST("/completeNewUserRegistration", accountHandler.CompleteNewUserRegistration)
 		// Verificar el client ID en el middleware de auth
-		accounts.GET("/:client_id", authHandlerMiddleware(), func(c *gin.Context) {
-			clientIDStr := c.Param("client_id")
-
-			clientID, err := strconv.Atoi(clientIDStr)
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid identifier"})
-				return
-			}
-			middleware.AuthenticateUserByClientIdMiddleware(c, clientID)
-		}, accountHandler.FetchAccounts)
+		accounts.GET(
+			"/:client_id",
+			authHandlerMiddleware(),
+			middleware.AuthenticationByClientIdHandler(),
+			accountHandler.FetchAccounts,
+		)
 	}
 	clients := router.Group("/clients")
 	{
 		// Verificar que identificacion corresponde al clientID
-		clients.GET("/:identification", authHandlerMiddleware(), func(c *gin.Context) {
-			identification := c.Param("identification")
-			middleware.AuthenticateUserByIdentificationMiddleware(c, identification)
-		}, clientHandler.GetClientByIdentification)
+		clients.GET(
+			"/:identification",
+			authHandlerMiddleware(),
+			middleware.AuthenticateUserByIdentificationHandler(),
+			clientHandler.GetClientByIdentification,
+		)
 		// Este endpoint debe recibir algún token especial para la autorización
 		clients.POST("", clientHandler.CreateClient)
 
@@ -153,18 +150,17 @@ func main() {
 	transactions := router.Group("/transactions", authHandlerMiddleware())
 	{
 		// verificar que la cuenta corresponda al cliente
-		transactions.GET("/:account_id", func(c *gin.Context) {
-			accountIdStr := c.Param("account_id")
-
-			accountID, err := strconv.Atoi(accountIdStr)
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid identifier"})
-				return
-			}
-			middleware.AuthenticateUserByAccountIdMiddleware(c, accountID)
-		}, transactionHandler.GetTransactions)
+		transactions.GET(
+			"/:account_id",
+			middleware.AuthenticateByAccountIdHandler(),
+			transactionHandler.GetTransactions,
+		)
 		// verificar que la cuenta corresponda al cliente
-		transactions.POST("", transactionHandler.PerformTransaction)
+		transactions.POST(
+			"",
+		    middleware.AuthenticatePerformTransactionHandler(),
+			transactionHandler.PerformTransaction,
+		)
 	}
 	router.Run() // Listen on :8080 by default
 	defer db.Close()
