@@ -3,8 +3,8 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"go.uber.org/zap"
 	"fmt"
-	"log/slog"
 	accountentity "src/domain/account"
 	errors "src/errors"
 
@@ -21,15 +21,12 @@ type AccountRepository interface {
 
 type accountRepository struct {
 	db     *sql.DB
-	logger *slog.Logger
+	logger *zap.Logger
 }
 
-func NewAccountRepository(db *sql.DB, logger *slog.Logger) AccountRepository {
+func NewAccountRepository(db *sql.DB, logger *zap.Logger) AccountRepository {
 	if db == nil {
 		panic("db cannot be nil")
-	}
-	if logger == nil {
-		logger = slog.Default()
 	}
 	return &accountRepository{db: db, logger: logger}
 }

@@ -2,13 +2,13 @@ package validators
 
 import (
 	"fmt"
-	"log/slog"
+	"go.uber.org/zap"
 	transaction_entity "src/domain/transaction"
 	errors "src/errors"
 	"strings"
 )
 
-func ValidateTransactionBalance(transaction transaction_entity.TransactionEntity, balance float64, logger *slog.Logger) errors.AppError {
+func ValidateTransactionBalance(transaction transaction_entity.TransactionEntity, balance float64, logger *zap.Logger) errors.AppError {
 	transactionType := strings.ToUpper(transaction.Type)
 
 	if transactionType == "ADD" {

@@ -1,27 +1,29 @@
 package main
 
 import (
+	"fmt"
 	"log"
-	"log/slog"
 	"os"
 	api_keycloak "src/api/keycloak"
 	app_router "src/api/router"
+	logger "src/logger"
 	"src/repositories"
+
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"go.uber.org/zap"
 )
-
-var logger *slog.Logger
+var zlogger *zap.Logger
 var db *sqlx.DB
 var repositoryWrapper *repositories.RepositoryWrapper
 
 func LoadRepositoryWrapper() {
-	transactionRepository := repositories.NewTransactionRepository(db.DB, logger)
-	accountRepository := repositories.NewAccountRepository(db.DB, logger)
-	clientRepository := repositories.NewClientRepository(db.DB, logger)
-	registryAccountOtpRepository := repositories.NewRegistryAccountOtpRepository(db.DB, logger)
+	transactionRepository := repositories.NewTransactionRepository(db.DB, zlogger)
+	accountRepository := repositories.NewAccountRepository(db.DB, zlogger)
+	clientRepository := repositories.NewClientRepository(db.DB, zlogger)
+	registryAccountOtpRepository := repositories.NewRegistryAccountOtpRepository(db.DB, zlogger)
 	repositoryWrapper = &repositories.RepositoryWrapper{
 		ClientRepository:             clientRepository,
 		AccountRepository:            accountRepository,
@@ -36,9 +38,11 @@ func initializer() {
 		log.Printf("Warning: Could not load .env file: %v. Falling back to system environment variables.", err)
 		panic("environment variables could not be loaded!")
 	}
-	logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelDebug, // Debug level for detailed test output
-	}))
+	// logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+	// 	Level: slog.LevelDebug, // Debug level for detailed test output
+	// }))
+
+	zlogger = logger.GetLogger()
 
 	connectionString := os.Getenv("POSTGRES_CONNECTION_STRING")
 	db, err = sqlx.Connect("postgres", connectionString)
@@ -55,6 +59,7 @@ func initializer() {
 		log.Println("Successfully Connected")
 		LoadRepositoryWrapper()
 	}
+
 }
 
 // @title API Bank Clients
@@ -71,8 +76,12 @@ func main() {
 		KeycloakClient: &keycloakClient,
 		RepositoryWrapper: repositoryWrapper,
 	}
-
+	
 	appRouter.BuildRoutes(router)
+	fmt.Println("Ledger is running")
+	zlogger.Info("Server has been started")
 	router.Run() // Listen on :8080 by default
 	defer db.Close()
+	zlogger.Fatal("Server has been shut down")
+
 }

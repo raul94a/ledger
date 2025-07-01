@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log/slog"
+	"go.uber.org/zap"
 	cliententity "src/domain/client"
 	errors "src/errors"
 )
@@ -20,16 +20,14 @@ type ClientRepository interface {
 
 type clientRepository struct {
 	db     *sql.DB
-	logger *slog.Logger
+	logger *zap.Logger
 }
 
-func NewClientRepository(db *sql.DB, logger *slog.Logger) ClientRepository {
+func NewClientRepository(db *sql.DB, logger *zap.Logger) ClientRepository {
 	if db == nil {
 		panic("db cannot be nil")
 	}
-	if logger == nil {
-		logger = slog.Default()
-	}
+	
 	return &clientRepository{db: db, logger: logger}
 }
 
