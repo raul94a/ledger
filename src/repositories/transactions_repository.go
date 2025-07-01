@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log/slog"
+	"go.uber.org/zap"
 	ledgerentity "src/domain/ledger"
 	pagination "src/domain/pagination"
 	transaction_entity "src/domain/transaction"
@@ -26,16 +26,14 @@ type TransactionRepository interface {
 
 type transactionRepository struct {
 	db     *sql.DB
-	logger *slog.Logger
+	logger *zap.Logger
 }
 
-func NewTransactionRepository(db *sql.DB, logger *slog.Logger) TransactionRepository {
+func NewTransactionRepository(db *sql.DB, logger *zap.Logger) TransactionRepository {
 	if db == nil {
 		panic("db cannot be nil")
 	}
-	if logger == nil {
-		logger = slog.Default()
-	}
+	
 	return &transactionRepository{db: db, logger: logger}
 }
 
@@ -59,7 +57,7 @@ func (r *transactionRepository) InsertTransaction(ctx context.Context, tx *sql.T
 	if err != nil {
 		errorString := fmt.Sprintf("Error occurred while inserting transaction: %s", err.Error())
 		r.logger.Error(errorString)
-		errorString = fmt.Sprintf("Account id: %s, amount: %v, type: %s", transaction.AccountID, transaction.Amount, transaction.Type)
+		errorString = fmt.Sprintf("Account id: %d, amount: %v, type: %s", transaction.AccountID, transaction.Amount, transaction.Type)
 		r.logger.Error(errorString)
 		return &errors.ErrInternalServer{Reason: err}
 	}
@@ -126,7 +124,8 @@ func (r *transactionRepository) InsertTransactionLedgerTx(ctx context.Context, t
 	})
 
 	if txErr != nil {
-		r.logger.Error("Error occurred while beginning transaction ledger: %s ", txErr.Error())
+		errStr := fmt.Sprintf("Error occurred while beginning transaction ledger: %s ", txErr.Error())
+		r.logger.Error(errStr)
 		return &errors.ErrInternalServer{Reason: txErr}
 	}
 
@@ -208,7 +207,7 @@ func (r *transactionRepository) updateAccountBalance(
 ) errors.AppError {
 	query := ""
 	mustAdd := ledgerTransaction.LedgerType == "CREDIT"
-	infoStr := fmt.Sprint("Must add credit to ledger: %v", mustAdd)
+	infoStr := fmt.Sprintf("Must add credit to ledger: %v", mustAdd)
 	r.logger.Info(infoStr)
 	if mustAdd {
 		query = `UPDATE account_balances SET balance = balance + $1 where account_id = $2`

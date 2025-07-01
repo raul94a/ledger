@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log/slog"
+	"go.uber.org/zap"
 	otp_entity "src/domain/registry_accounts_otp"
 	errors "src/errors"
 )
@@ -17,16 +17,14 @@ type RegistryAccountOtpRepository interface {
 
 type registryAccountOtpRepository struct {
 	db     *sql.DB
-	logger *slog.Logger
+	logger *zap.Logger
 }
 
-func NewRegistryAccountOtpRepository(db *sql.DB, logger *slog.Logger) RegistryAccountOtpRepository {
+func NewRegistryAccountOtpRepository(db *sql.DB, logger *zap.Logger) RegistryAccountOtpRepository {
 	if db == nil {
 		panic("db cannot be nil")
 	}
-	if logger == nil {
-		logger = slog.Default()
-	}
+	
 	return &registryAccountOtpRepository{db: db, logger: logger}
 }
 

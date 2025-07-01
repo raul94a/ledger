@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"go.uber.org/zap"
 	logger "src/logger"
 	api_keycloak "src/api/keycloak"
 	app_router "src/api/router"
@@ -12,15 +13,15 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
-
+var zlogger *zap.Logger
 var db *sqlx.DB
 var repositoryWrapper *repositories.RepositoryWrapper
 
 func LoadRepositoryWrapper() {
-	transactionRepository := repositories.NewTransactionRepository(db.DB, logger)
-	accountRepository := repositories.NewAccountRepository(db.DB, logger)
-	clientRepository := repositories.NewClientRepository(db.DB, logger)
-	registryAccountOtpRepository := repositories.NewRegistryAccountOtpRepository(db.DB, logger)
+	transactionRepository := repositories.NewTransactionRepository(db.DB, zlogger)
+	accountRepository := repositories.NewAccountRepository(db.DB, zlogger)
+	clientRepository := repositories.NewClientRepository(db.DB, zlogger)
+	registryAccountOtpRepository := repositories.NewRegistryAccountOtpRepository(db.DB, zlogger)
 	repositoryWrapper = &repositories.RepositoryWrapper{
 		ClientRepository:             clientRepository,
 		AccountRepository:            accountRepository,
@@ -39,7 +40,7 @@ func initializer() {
 	// 	Level: slog.LevelDebug, // Debug level for detailed test output
 	// }))
 
-	logger := logger.GetLogger()
+	zlogger = logger.GetLogger()
 
 	connectionString := os.Getenv("POSTGRES_CONNECTION_STRING")
 	db, err = sqlx.Connect("postgres", connectionString)
@@ -56,6 +57,7 @@ func initializer() {
 		log.Println("Successfully Connected")
 		LoadRepositoryWrapper()
 	}
+
 }
 
 // @title API Bank Clients
@@ -75,5 +77,8 @@ func main() {
 
 	appRouter.BuildRoutes(router)
 	router.Run() // Listen on :8080 by default
+	zlogger.Info("Server has been started")
 	defer db.Close()
+	zlogger.Info("Server has been shut down")
+
 }
