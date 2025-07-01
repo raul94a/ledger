@@ -34,6 +34,8 @@ func (appRouter AppRouter) BuildRoutes(router *gin.Engine) {
 		}
 	}
 
+	logger := middleware.RequestLogger()
+
 	clientHandler := handlers.IClientHandler{
 		ClientRepository:             appRouter.RepositoryWrapper.ClientRepository,
 		RegistryAccountOtpRepository: appRouter.RepositoryWrapper.RegistryAccountOtpRepository,
@@ -59,15 +61,17 @@ func (appRouter AppRouter) BuildRoutes(router *gin.Engine) {
 	/**
 	 * ROUTES
 	 */
+	
 	router.GET("/")
 	authorization := router.Group("/authorization")
 	{
-		authorization.POST("/login", authHandler.Authorization)
+		authorization.POST("/login",logger,authHandler.Authorization)
 	}
+
 	accounts := router.Group("/accounts")
 	{
-		accounts.POST("", authHandlerMiddleware(), accountHandler.CreateAccount)
-		accounts.POST("/completeNewUserRegistration", accountHandler.CompleteNewUserRegistration)
+		accounts.POST("", logger,authHandlerMiddleware(), accountHandler.CreateAccount)
+		accounts.POST("/completeNewUserRegistration", logger,accountHandler.CompleteNewUserRegistration)
 		// Verificar el client ID en el middleware de auth
 		accounts.GET(
 			"/:client_id",
@@ -86,10 +90,10 @@ func (appRouter AppRouter) BuildRoutes(router *gin.Engine) {
 			clientHandler.GetClientByIdentification,
 		)
 		// Este endpoint debe recibir algún token especial para la autorización
-		clients.POST("", clientHandler.CreateClient)
+		clients.POST("",logger, clientHandler.CreateClient)
 
 	}
-	transactions := router.Group("/transactions", authHandlerMiddleware())
+	transactions := router.Group("/transactions",logger, authHandlerMiddleware())
 	{
 		// verificar que la cuenta corresponda al cliente
 		transactions.GET(
@@ -99,7 +103,7 @@ func (appRouter AppRouter) BuildRoutes(router *gin.Engine) {
 		)
 		// verificar que la cuenta corresponda al cliente
 		transactions.POST(
-			"",
+			"",logger,
 		    middleware.AuthenticatePerformTransactionHandler(),
 			transactionHandler.PerformTransaction,
 		)

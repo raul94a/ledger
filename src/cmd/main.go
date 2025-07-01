@@ -1,17 +1,19 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
-	"go.uber.org/zap"
-	logger "src/logger"
 	api_keycloak "src/api/keycloak"
 	app_router "src/api/router"
+	logger "src/logger"
 	"src/repositories"
+
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"go.uber.org/zap"
 )
 var zlogger *zap.Logger
 var db *sqlx.DB
@@ -74,11 +76,12 @@ func main() {
 		KeycloakClient: &keycloakClient,
 		RepositoryWrapper: repositoryWrapper,
 	}
-
+	
 	appRouter.BuildRoutes(router)
-	router.Run() // Listen on :8080 by default
+	fmt.Println("Ledger is running")
 	zlogger.Info("Server has been started")
+	router.Run() // Listen on :8080 by default
 	defer db.Close()
-	zlogger.Info("Server has been shut down")
+	zlogger.Fatal("Server has been shut down")
 
 }
