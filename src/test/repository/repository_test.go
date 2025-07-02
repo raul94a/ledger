@@ -3,8 +3,7 @@ package repository_Test
 import (
 	"context"
 	"database/sql"
-	"log/slog"
-	"os"
+	app_logger "src/logger"
 	"src/repositories"
 	"src/test/utils"
 	insert_entities "src/test/utils"
@@ -58,9 +57,7 @@ func TestRepository(t *testing.T) {
 	// Test the connection with a ping
 	err = db.PingContext(ctx)
 	assert.NoError(t, err, "failed to ping database")
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelDebug, // Debug level for detailed test output
-	}))
+	logger := app_logger.GetLogger()
 
 	clientRepository := repositories.NewClientRepository(db, logger)
 	accountRepository := repositories.NewAccountRepository(db, logger)
@@ -145,9 +142,7 @@ func TestRepositoryNotEnoughFundsTransaction(t *testing.T) {
 	// Test the connection with a ping
 	err = db.PingContext(ctx)
 	assert.NoError(t, err, "failed to ping database")
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelDebug, // Debug level for detailed test output
-	}))
+	logger := app_logger.GetLogger()
 
 	clientRepository := repositories.NewClientRepository(db, logger)
 	accountRepository := repositories.NewAccountRepository(db, logger)
@@ -230,9 +225,7 @@ func TestRepositoryNotEnoughFundsWithdrawal(t *testing.T) {
 	// Test the connection with a ping
 	err = db.PingContext(ctx)
 	assert.NoError(t, err, "failed to ping database")
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelDebug, // Debug level for detailed test output
-	}))
+	logger := app_logger.GetLogger()
 
 	clientRepository := repositories.NewClientRepository(db, logger)
 	accountRepository := repositories.NewAccountRepository(db, logger)
