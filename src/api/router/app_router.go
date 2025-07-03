@@ -3,15 +3,20 @@ package app_router
 import (
 	"src/api/handlers"
 	api_keycloak "src/api/keycloak"
-	services "src/api/service"
 	"src/api/middleware"
+	services "src/api/service"
 	"src/repositories"
+	"go.uber.org/zap"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
+
 )
 
 type AppRouter struct {
 	RepositoryWrapper *repositories.RepositoryWrapper
 	KeycloakClient    *api_keycloak.KeycloakClient
+	RedisClient		  *redis.Client
+	ZapLogger		  *zap.Logger
 }
 
 func (appRouter AppRouter) BuildRoutes(router *gin.Engine) {
@@ -57,6 +62,8 @@ func (appRouter AppRouter) BuildRoutes(router *gin.Engine) {
 
 	authHandler := handlers.IAuthorizationHandler{
 		KeycloakClient: *appRouter.KeycloakClient,
+		Logger: appRouter.ZapLogger,
+		RedisClient: appRouter.RedisClient,
 	}
 	/**
 	 * ROUTES

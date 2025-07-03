@@ -4,7 +4,9 @@ import (
 	"crypto/rsa"
 	"fmt"
 	app_errors "src/errors"
+	"strings"
 	"time"
+
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -42,7 +44,7 @@ func (k KeycloakClient) GetRsaPublicKey() (*rsa.PublicKey, app_errors.AppError) 
 	}
 }
 
-func (k KeycloakClient) VerifyToken(token string) (*jwt.Token, app_errors.AppError) {
+func (k KeycloakClient) getJwtToken(token string) (*jwt.Token, error) {
 	rsaKey, err := k.GetRsaPublicKey()
 	if err != nil {
 		return nil, err
@@ -51,7 +53,7 @@ func (k KeycloakClient) VerifyToken(token string) (*jwt.Token, app_errors.AppErr
 	if err != nil {
 		return nil, err
 	}
-	parsedToken, jwtError := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+	return jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
 		// Verificar el algoritmo de firma
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -63,6 +65,11 @@ func (k KeycloakClient) VerifyToken(token string) (*jwt.Token, app_errors.AppErr
 		}
 		return rsaKey, nil
 	})
+}
+
+func (k KeycloakClient) VerifyToken(token string) (*jwt.Token, app_errors.AppError) {
+
+	parsedToken, jwtError := k.getJwtToken(token)
 
 	if jwtError != nil {
 		return nil, &app_errors.ErrVerifyToken{Message: jwtError.Error()}
@@ -95,4 +102,44 @@ func VerifyClaims(token *jwt.Token) app_errors.AppError {
 	// 	t.Error("Invalid or missing sub claim")
 	// }
 	return nil
+}
+
+func (k KeycloakClient) HasTokenExpired(token string) bool {
+	jwtToken, jwtError := k.getJwtToken(token)
+	if jwtError != nil {
+		fmt.Println("HasTokenExpired() " + jwtError.Error())
+		return true
+	}
+	claims, ok := jwtToken.Claims.(jwt.MapClaims)
+	if !ok {
+		return true
+	}
+	exp, ok := claims["exp"].(float64)
+	if !ok {
+		return true
+	}
+	return exp < float64(time.Now().Unix())
+}
+
+func (k KeycloakClient) VerifyIssuer(token string, preferred_username string) error {
+	jwtToken, jwtError := k.getJwtToken(token)
+	if jwtError != nil {
+		fmt.Println("VerifyIssuer() " + jwtError.Error())
+		return jwtError
+	}
+	claims, ok := jwtToken.Claims.(jwt.MapClaims)
+	if !ok {
+		return &app_errors.ErrVerifyToken{Message: "error obtaining claims"}
+	}
+	issuerKey := "preferred_username"
+	fmt.Printf("Claims %v\n", claims)
+	fmt.Printf("Claimed key: " + claims[issuerKey].(string) + "\n")
+	fmt.Printf("Preferred username %s\n", preferred_username)
+	issuer, ok := claims[issuerKey].(string)
+	sameIssuer := strings.EqualFold(strings.ToLower(issuer), strings.ToLower(preferred_username))
+	if !ok || !sameIssuer {
+		return fmt.Errorf("not valid credentials")
+	}
+	return nil
+
 }
