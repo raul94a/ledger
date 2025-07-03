@@ -8,6 +8,14 @@ an IBAN verification method is implemented.
 For testing purpose, the testcontainers library is being used for everything running in docker, as it provides a simple interface that makes it simple.
 
 Regarding the API documentation, gin-swagger is being used to generate the docs and yaml files.
+## Environment configuration
+Copy the [.env-copy file](/src/.env-copy) into a new file into the [/src](/src) folder. Then, provide the postgresql, Keycloak and redis configuration.
+For the Database used internally for Keycloak, you can provide your own url into the Keycloak service in the [docker-compose.yml file](/integrations/docker-compose.yml) by overriding the KC_DB_URL field.
+## Redis Configuration
+
+Redis is used for caching [TokenResponse](/src/api/keycloak/models.go) documents.
+
+The needed configuration is provided in the [.env file](/src/.env-copy)
 
 ## Keycloak Configuration
 
@@ -68,6 +76,7 @@ AUTH_SERVICES_DISCOVER_URL=/realms/ledger/.well-known/openid-configuration
 - Swagger/OpenAPI
 - ELK Stack
 - Keycloak
+- Redis
 
 
 
