@@ -3,11 +3,12 @@ package repositories
 import (
 	"context"
 	"database/sql"
-	"go.uber.org/zap"
 	"fmt"
 	accountentity "src/domain/account"
 	errors "src/errors"
 
+	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 type AccountRepository interface {
@@ -15,16 +16,16 @@ type AccountRepository interface {
 	FetchAccountIdByAccountNumber(ctx context.Context, iban string) (*int, errors.AppError)
 	FetchAccountsByClient(ctx context.Context, clientID int) ([]accountentity.AccountEntity, errors.AppError)
 	InsertAccount(ctx context.Context, account *accountentity.AccountEntity) errors.AppError
-	InsertAccountTx(ctx context.Context, tx *sql.Tx, account *accountentity.AccountEntity) errors.AppError
-	createAccountBalance(ctx context.Context, tx *sql.Tx, account *accountentity.AccountEntity) errors.AppError
+	InsertAccountTx(ctx context.Context, tx *gorm.DB, account *accountentity.AccountEntity) errors.AppError
+	createAccountBalance(ctx context.Context, tx *gorm.DB, account *accountentity.AccountEntity) errors.AppError
 }
 
 type accountRepository struct {
-	db     *sql.DB
+	db     *gorm.DB
 	logger *zap.Logger
 }
 
-func NewAccountRepository(db *sql.DB, logger *zap.Logger) AccountRepository {
+func NewAccountRepository(db *gorm.DB, logger *zap.Logger) AccountRepository {
 	if db == nil {
 		panic("db cannot be nil")
 	}
@@ -32,14 +33,9 @@ func NewAccountRepository(db *sql.DB, logger *zap.Logger) AccountRepository {
 }
 
 func (r *accountRepository) FetchAccountIdByAccountNumber(ctx context.Context, iban string)(*int, errors.AppError ){
-	fmt.Println("ACCOUNT NUMBER ", iban)
-	query := `
-		SELECT id from accounts where account_number = $1
-	`
-	
-
+	result := r.db.Where("account_number = ?", iban)
+	err := result.Error
 	var id *int
-	err := r.db.QueryRowContext(ctx,query,iban).Scan(&id)
 	if err == sql.ErrNoRows {
 		r.logger.Error("Error occurred: " + err.Error())
 		return nil, &errors.ErrNotFound{Entity: "Account", Reason: err}
@@ -53,38 +49,17 @@ func (r *accountRepository) FetchAccountIdByAccountNumber(ctx context.Context, i
 }
 
 func (r *accountRepository) FetchAccountsByClient(ctx context.Context, clientID int) ([]accountentity.AccountEntity, errors.AppError) {
-	query := `
-	 SELECT * FROM accounts where client_id = $1
-	`
 
-	sqlRows, err := r.db.QueryContext(ctx, query, clientID)
+	var accounts []accountentity.AccountEntity
+	result := r.db.Where("client_id = ?",clientID).Find(&accounts)
+	err := result.Error
 
 	if err != nil {
 		r.logger.Error("Error occurred: " + err.Error())
 		return nil, &errors.ErrInternalServer{Reason: err}
 	}
-	defer sqlRows.Close()
-	var accounts []accountentity.AccountEntity = make([]accountentity.AccountEntity, 0)
 
-	for sqlRows.Next() {
-		var account accountentity.AccountEntity = accountentity.AccountEntity{}
-		scanError := sqlRows.Scan(
-			&account.ID,
-			&account.ClientID,
-			&account.AccountNumber,
-			&account.CreatedAt,
-			&account.UpdatedAt,
-		)
-		if scanError != nil {
-			r.logger.Error("Error occurred while scanning account: " + err.Error())
-			return nil, &errors.ErrInternalServer{Reason: err}
-		}
-		accounts = append(accounts, account)
-	}
-	if err := sqlRows.Err(); err != nil {
-		r.logger.Error("Error occurred after scanning rows: " + err.Error())
-		return nil, &errors.ErrInternalServer{Reason: err}
-	}
+	
 	// // no error
 	if len(accounts) == 0 {
 		r.logger.Warn("No accounts found for client: " + fmt.Sprint(clientID))
@@ -95,18 +70,10 @@ func (r *accountRepository) FetchAccountsByClient(ctx context.Context, clientID 
 }
 
 func (r *accountRepository) FetchAccountById(ctx context.Context, ID int) (accountentity.AccountEntity, errors.AppError) {
-	query := `
-	 SELECT * FROM accounts where id = $1
-	`
+	
 	var account accountentity.AccountEntity = accountentity.AccountEntity{}
-	sqlRow := r.db.QueryRowContext(ctx, query, ID)
-	err := sqlRow.Scan(
-		&account.ID,
-		&account.ClientID,
-		&account.AccountNumber,
-		&account.CreatedAt,
-		&account.UpdatedAt,
-	)
+	result := r.db.Where("id = ?",ID).Find(&account)
+	err := result.Error
 	if err == sql.ErrNoRows {
 		r.logger.Error("No account found " + fmt.Sprint(ID))
 		return accountentity.AccountEntity{}, &errors.ErrNotFound{Entity: "Account"}
@@ -119,13 +86,15 @@ func (r *accountRepository) FetchAccountById(ctx context.Context, ID int) (accou
 	return account, nil
 }
 
-func (r *accountRepository) createAccountBalance(ctx context.Context, tx *sql.Tx, account *accountentity.AccountEntity) errors.AppError  {
+func (r *accountRepository) createAccountBalance(ctx context.Context, tx *gorm.DB, account *accountentity.AccountEntity) errors.AppError  {
 	query := `
 	INSERT INTO account_balances (
             account_id, balance
         ) VALUES ($1, $2)`
 	initBalance := 0.0
-	_, err := tx.ExecContext(ctx, query, account.ID, initBalance)
+
+	tx = tx.Raw(query, account.ID, initBalance)
+	err := tx.Error
 	if err != nil {
 		errString := fmt.Sprintf("Error inserting new account_balance (ACCOUNT_ID: %d). %s",account.ID,err.Error())
 		r.logger.Error(errString)
@@ -136,19 +105,12 @@ func (r *accountRepository) createAccountBalance(ctx context.Context, tx *sql.Tx
 	return nil
 }
 
-func (r *accountRepository) InsertAccountTx(ctx context.Context, tx *sql.Tx,account *accountentity.AccountEntity) errors.AppError {
+func (r *accountRepository) InsertAccountTx(ctx context.Context, tx *gorm.DB,account *accountentity.AccountEntity) errors.AppError {
 	
-	query := `
-	INSERT INTO accounts (
-            client_id, account_number
-        ) VALUES ($1, $2) 
-		RETURNING id,created_at, updated_at`
-
 	// Execute the query and scan the returned values into the client struct
-	err := tx.QueryRowContext(ctx, query,
-		account.ClientID,
-		account.AccountNumber,
-	).Scan(&account.ID, &account.CreatedAt, &account.UpdatedAt)
+	result := r.db.Create(account)
+	err := result.Error
+
 
 	if err != nil {
 		r.logger.Error("Error occurred inserting account: " + err.Error() + " .ClientID: " + fmt.Sprint(account.ClientID))
@@ -166,22 +128,13 @@ func (r *accountRepository) InsertAccountTx(ctx context.Context, tx *sql.Tx,acco
 
 func (r *accountRepository) InsertAccount(ctx context.Context, account *accountentity.AccountEntity) errors.AppError {
 	
-	query := `
-	INSERT INTO accounts (
-            client_id, account_number
-        ) VALUES ($1, $2) 
-		RETURNING id,created_at, updated_at`
-
 	// Execute the query and scan the returned values into the client struct
-	tx, txError := r.db.BeginTx(ctx,&sql.TxOptions{ReadOnly: false})
-	if txError != nil {
-		return &errors.ErrInternalServer{Reason: txError}
+	tx  := r.db.Begin(&sql.TxOptions{ReadOnly: false})
+	if tx.Error != nil {
+		return &errors.ErrInternalServer{Reason: tx.Error}
 	}
-	err := tx.QueryRowContext(ctx, query,
-		account.ClientID,
-		account.AccountNumber,
-	).Scan(&account.ID, &account.CreatedAt, &account.UpdatedAt)
-
+	result := tx.Create(account)
+	err := result.Error
 	if err != nil {
 		r.logger.Error("Error occurred inserting account: " + err.Error() + " .ClientID: " + fmt.Sprint(account.ClientID))
 		tx.Rollback()

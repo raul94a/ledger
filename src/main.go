@@ -8,26 +8,30 @@ import (
 	api_keycloak "src/api/keycloak"
 	app_router "src/api/router"
 	appRedis "src/db/redis"
+	docs "src/docs"
 	logger "src/logger"
 	"src/repositories"
+
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	swaggerfiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/zap"
-    docs "src/docs"
-    swaggerfiles "github.com/swaggo/files"
-    ginSwagger "github.com/swaggo/gin-swagger"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 var zlogger *zap.Logger
-var db *sqlx.DB
+var db *gorm.DB
+var dbSqlite *sqlx.DB
 var repositoryWrapper *repositories.RepositoryWrapper
 
 func LoadRepositoryWrapper() {
-	transactionRepository := repositories.NewTransactionRepository(db.DB, zlogger)
-	accountRepository := repositories.NewAccountRepository(db.DB, zlogger)
-	clientRepository := repositories.NewClientRepository(db.DB, zlogger)
-	registryAccountOtpRepository := repositories.NewRegistryAccountOtpRepository(db.DB, zlogger)
+	transactionRepository := repositories.NewTransactionRepository(dbSqlite.DB, zlogger)
+	accountRepository := repositories.NewAccountRepository(db, zlogger)
+	clientRepository := repositories.NewClientRepository(db, zlogger)
+	registryAccountOtpRepository := repositories.NewRegistryAccountOtpRepository(db, zlogger)
 	repositoryWrapper = &repositories.RepositoryWrapper{
 		ClientRepository:             clientRepository,
 		AccountRepository:            accountRepository,
@@ -45,14 +49,16 @@ func initializer() {
 	}
 
 	connectionString := os.Getenv("POSTGRES_CONNECTION_STRING")
-	db, err = sqlx.Connect("postgres", connectionString)
+	db, err = gorm.Open(postgres.Open(connectionString), &gorm.Config{})
+	dbSqlite, _ = sqlx.Connect("postgres", connectionString)
 	if err != nil {
 		log.Fatalln(err)
 		panic("error " + err.Error())
 	}
 
-	// Test the connection to the database
-	if err := db.Ping(); err != nil {
+	// // Test the connection to the database
+	
+	if err := dbSqlite.Ping(); err != nil {
 		log.Fatal(err)
 		panic("error " + err.Error())
 	} else {
@@ -100,7 +106,7 @@ func main() {
 	fmt.Println("Ledger is running")
 	zlogger.Info("Server has been started")
 	router.Run() // Listen on :8080 by default
-	defer db.Close()
+	// defer db.Close()
 	zlogger.Fatal("Server has been shut down")
 
 }
