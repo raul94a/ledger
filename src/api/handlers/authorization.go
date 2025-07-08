@@ -21,6 +21,16 @@ type IAuthorizationHandler struct {
 	RedisClient    *redis.Client
 }
 
+// @Summary User Authorization
+// @Description Authorizes an User by using its credentials (Identification -Spanish NID- and password)
+// @Accept json
+// @Produce json
+// @Param request body dto.AuthorizationRequest true "Credentials"
+// @Param session-id header string false "A session ID to use the same token"
+// @Success 200 {object} api_keycloak.TokenResponse "Successfully retrieved User authorization"
+// @Failure 400 {object} map[string]string "Bad Request - Invalid client ID"
+// @Router /authorization/login [post]
+// @tags Authorization
 func (h *IAuthorizationHandler) Authorization(c *gin.Context) {
 	// 0. Bind the request body
 	var req dto.AuthorizationRequest

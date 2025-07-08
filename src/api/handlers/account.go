@@ -9,7 +9,6 @@ import (
 	"src/mappers"
 	repositories "src/repositories"
 	"strconv"
-
 	"github.com/gin-gonic/gin"
 	"fmt"
 )
@@ -31,17 +30,18 @@ type IAccountHandler struct {
 	RegistryAccountOtpRepository repositories.RegistryAccountOtpRepository
 }
 
-// @Summary Returns clients accounts
+// @Summary Returns client accounts
 // @Description Receives the client_id to fetch all the accounts from a Client
 // @Accept json
 // @Produce json
-// @Param client_id
-// @Success 200 {object} map[string]interface{} ""
-// @Failure 400 {object} map[string]string "Bad Request"
-// @Router /accounts/:client_id [get]
+// @Param client_id path int true "The ID of the client whose accounts want to be fetched"
+// @Success 200 {object} []dto.AccountDto "Successfully retrieved client accounts"
+// @Failure 400 {object} map[string]string "Bad Request - Invalid client ID"
+// @Router /accounts/{client_id} [get] // Changed :client_id to {client_id} for Swagger consistency
+// @security BearerAuth
+// @tags Accounts
 func (h *IAccountHandler) FetchAccounts(c *gin.Context) {
 	clientIDStr := c.Param("client_id")
-
 	clientID, err := strconv.Atoi(clientIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid identifier"})
@@ -76,6 +76,16 @@ func (h *IAccountHandler) FetchAccounts(c *gin.Context) {
 	})
 }
 
+// @Summary Creates a new account
+// @Description Creates a new bank account for a given client ID
+// @Accept json
+// @Produce json
+// @Param request body dto.CreateAccountRequest true "Client ID for the new account"
+// @Success 200 {object} object{account=dto.AccountDto} "Created account successfully"
+// @Failure 400 {object} map[string]string "Bad Request - Invalid input or client ID"
+// @Failure 500 {object} map[string]string "Internal Server Error"
+// @Router /accounts [post]
+// @tags Accounts
 func (h *IAccountHandler) CreateAccount(c *gin.Context) {
 	var createAccountReq dto.CreateAccountRequest
 	if error := c.ShouldBindJSON(&createAccountReq); error != nil {
@@ -96,6 +106,17 @@ func (h *IAccountHandler) CreateAccount(c *gin.Context) {
 
 }
 
+
+// @Summary Completes new user registration
+// @Description Finalizes the registration process for a new user, including Keycloak user creation and account service completion.
+// @Accept json
+// @Produce json
+// @Param request body dto.CompleteClientRegistrationBankAccountRequest true "Registration details for the new user"
+// @Success 201 {object} map[string]interface{} "User registration completed successfully" // 201 for creation
+// @Failure 400 {object} map[string]string "Bad Request - Invalid input"
+// @Failure 500 {object} map[string]string "Internal Server Error"
+// @Router /accounts/completeNewUserRegistration [post] // Assuming this is the intended route
+// @tags Accounts
 func (h *IAccountHandler) CompleteNewUserRegistration(c *gin.Context) {
 	var completeClientRegistration dto.CompleteClientRegistrationBankAccountRequest
 	if err := c.Bind(&completeClientRegistration); err != nil {

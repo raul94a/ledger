@@ -26,10 +26,11 @@ type IClientHandler struct {
 // @Description Recibe los datos de un cliente y lo registra en el sistema.
 // @Accept json
 // @Produce json
-// @Param client body CreateClientRequest true "Datos del cliente para crear"
+// @Param client body clientdto.CreateClientRequest true "Datos del cliente para crear"
 // @Success 201 {object} map[string]interface{} "Cliente creado exitosamente"
 // @Failure 400 {object} map[string]string "Solicitud inválida"
 // @Router /clients [post]
+// @tags Clients
 func (h *IClientHandler) CreateClient(c *gin.Context) {
 	var client clientdto.CreateClientRequest
 	if error := c.ShouldBindJSON(&client); error != nil {

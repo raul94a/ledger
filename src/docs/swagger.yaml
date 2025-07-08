@@ -1,0 +1,307 @@
+basePath: /
+definitions:
+  api_keycloak.TokenResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      not-before-policy:
+        type: integer
+      refresh_expires_in:
+        type: integer
+      refresh_token:
+        type: string
+      scope:
+        type: string
+      session_state:
+        type: string
+      token_type:
+        type: string
+    type: object
+  clientdto.AccountDto:
+    properties:
+      account_number:
+        type: string
+      balance:
+        type: number
+      client_id:
+        description: From Keycloak
+        type: integer
+      created_date:
+        description: ISO 8601 date (YYYY-MM-DD HH:mm:ss)
+        type: string
+      id:
+        type: integer
+      updated_date:
+        description: ISO 8601 date (YYYY-MM-DD HH:mm:ss)
+        type: string
+    required:
+    - created_date
+    - updated_date
+    type: object
+  clientdto.AuthorizationRequest:
+    properties:
+      password:
+        type: string
+      user:
+        type: string
+    required:
+    - password
+    - user
+    type: object
+  clientdto.CompleteClientRegistrationBankAccountRequest:
+    properties:
+      identification:
+        type: string
+      otp:
+        type: string
+      pin:
+        type: string
+    required:
+    - identification
+    - otp
+    - pin
+    type: object
+  clientdto.CreateAccountRequest:
+    properties:
+      client_id:
+        type: integer
+    type: object
+  clientdto.CreateClientRequest:
+    properties:
+      address:
+        type: string
+      city:
+        type: string
+      date_of_birth:
+        description: ISO 8601 date (YYYY-MM-DD)
+        type: string
+      email:
+        type: string
+      identification:
+        description: e.g., passport, national ID
+        type: string
+      name:
+        type: string
+      nationality:
+        description: e.g., ISO 3166-1 alpha-2 code
+        type: string
+      province:
+        type: string
+      sex:
+        description: M(ale), F(emale)
+        enum:
+        - M
+        - F
+        type: string
+      state:
+        description: Optional, depending on country
+        type: string
+      surname1:
+        type: string
+      surname2:
+        description: Optional, as not all have second surname
+        type: string
+      tax_id:
+        description: e.g., SSN, TIN
+        type: string
+      telephone:
+        description: Basic phone validation can be added
+        type: string
+      zip_code:
+        type: string
+    required:
+    - address
+    - city
+    - date_of_birth
+    - email
+    - identification
+    - name
+    - nationality
+    - province
+    - sex
+    - surname1
+    - telephone
+    - zip_code
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Clients management of a bank system.
+  title: API Bank Clients
+  version: "1.0"
+paths:
+  /accounts:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new bank account for a given client ID
+      parameters:
+      - description: Client ID for the new account
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/clientdto.CreateAccountRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Created account successfully
+          schema:
+            properties:
+              account:
+                $ref: '#/definitions/clientdto.AccountDto'
+            type: object
+        "400":
+          description: Bad Request - Invalid input or client ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Creates a new account
+      tags:
+      - Accounts
+  /accounts/{client_id}:
+    get:
+      consumes:
+      - application/json
+      description: Receives the client_id to fetch all the accounts from a Client
+      parameters:
+      - description: The ID of the client whose accounts want to be fetched
+        in: path
+        name: client_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved client accounts
+          schema:
+            items:
+              $ref: '#/definitions/clientdto.AccountDto'
+            type: array
+        "400":
+          description: Bad Request - Invalid client ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Returns client accounts
+      tags:
+      - Accounts
+  /accounts/completeNewUserRegistration:
+    post:
+      consumes:
+      - application/json
+      description: Finalizes the registration process for a new user, including Keycloak
+        user creation and account service completion.
+      parameters:
+      - description: Registration details for the new user
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/clientdto.CompleteClientRegistrationBankAccountRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User registration completed successfully" // 201 for creation
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request - Invalid input
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Completes new user registration
+      tags:
+      - Accounts
+  /authorization/login:
+    post:
+      consumes:
+      - application/json
+      description: Authorizes an User by using its credentials (Identification -Spanish
+        NID- and password)
+      parameters:
+      - description: Credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/clientdto.AuthorizationRequest'
+      - description: A session ID to use the same token
+        in: header
+        name: session-id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved User authorization
+          schema:
+            $ref: '#/definitions/api_keycloak.TokenResponse'
+        "400":
+          description: Bad Request - Invalid client ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: User Authorization
+      tags:
+      - Authorization
+  /clients:
+    post:
+      consumes:
+      - application/json
+      description: Recibe los datos de un cliente y lo registra en el sistema.
+      parameters:
+      - description: Datos del cliente para crear
+        in: body
+        name: client
+        required: true
+        schema:
+          $ref: '#/definitions/clientdto.CreateClientRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Cliente creado exitosamente
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Solicitud inválida
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Crea un nuevo cliente
+      tags:
+      - Clients
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

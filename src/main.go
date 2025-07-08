@@ -10,12 +10,14 @@ import (
 	appRedis "src/db/redis"
 	logger "src/logger"
 	"src/repositories"
-
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"go.uber.org/zap"
+    docs "src/docs"
+    swaggerfiles "github.com/swaggo/files"
+    ginSwagger "github.com/swaggo/gin-swagger"
 )
 var zlogger *zap.Logger
 var db *sqlx.DB
@@ -41,10 +43,6 @@ func initializer() {
 		zlogger.Sugar().Warn("Warning: Could not load .env file: %v. Falling back to system environment variables. " +  err.Error())
 		panic("environment variables could not be loaded!")
 	}
-	// logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-	// 	Level: slog.LevelDebug, // Debug level for detailed test output
-	// }))
-
 
 	connectionString := os.Getenv("POSTGRES_CONNECTION_STRING")
 	db, err = sqlx.Connect("postgres", connectionString)
@@ -64,11 +62,22 @@ func initializer() {
 
 }
 
+func initSwagger(router *gin.Engine){
+	docs.SwaggerInfo.BasePath = "/"
+	router.GET("/apidoc/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
+
+
+}
+
 // @title API Bank Clients
 // @version 1.0
 // @description Clients management of a bank system.
 // @host localhost:8080
 // @BasePath /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
 func main() {
 	initializer()
 	redisClient := appRedis.Get()
@@ -77,7 +86,8 @@ func main() {
 
 	keycloakClient := api_keycloak.BuildKeycloakClientFromEnv()
 	router := gin.Default()
-
+	
+	initSwagger(router)
 	appRouter := app_router.AppRouter{
 		KeycloakClient: &keycloakClient,
 		RepositoryWrapper: repositoryWrapper,
