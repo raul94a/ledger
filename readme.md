@@ -97,3 +97,15 @@ migrate -database "postgres://USER:PASSWORD@HOST_IP:PORT/DATABASE?sslmode=disabl
 ### Gin tutorial
 
 [Mastering backend Gin tutorial](https://masteringbackend.com/posts/gin-framework#the-framework)
+
+
+### gin-swagger
+
+To create de OpenAPI Spec and the Swagger Web App, we're using the [swagger-gin]('https://github.com/swaggo/gin-swagger') library.
+
+To build the swagger doc: 
+```sh
+swag init
+```
+
+The project is configured to launch the Swagger in /apidoc/swagger/index.html
