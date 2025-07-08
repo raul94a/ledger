@@ -21,6 +21,17 @@ type ErrNotFound struct {
 	Entity string
 }
 
+type ErrorJsonType struct {
+	Error string
+}
+
+type ErrorMessageJsonType struct {
+	Error string
+	Message string
+}
+
+
+
 func (e *ErrNotFound) Error() string {
 	return fmt.Sprintf("%s not found", e.Entity)
 }

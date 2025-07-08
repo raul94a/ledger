@@ -11,6 +11,11 @@
     "paths": {
         "/accounts": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Creates a new bank account for a given client ID",
                 "consumes": [
                     "application/json"
@@ -229,7 +234,7 @@
                 "tags": [
                     "Clients"
                 ],
-                "summary": "Crea un nuevo cliente",
+                "summary": "Creates a new client",
                 "parameters": [
                     {
                         "description": "Datos del cliente para crear",
@@ -243,19 +248,184 @@
                 ],
                 "responses": {
                     "201": {
-                        "description": "Cliente creado exitosamente",
+                        "description": "Created",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/clientdto.ClientResponse"
                         }
                     },
                     "400": {
-                        "description": "Solicitud inválida",
+                        "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/app_errors.ErrorMessageJsonType"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/app_errors.ErrorJsonType"
+                        }
+                    }
+                }
+            }
+        },
+        "/clients/{identification}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the bank client.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Clients"
+                ],
+                "summary": "Gets a new client by its identification -Spanish National Document Identity-",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Identification of the client with format 00000000X",
+                        "name": "identification",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/clientdto.ClientResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/app_errors.ErrorMessageJsonType"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/app_errors.ErrorJsonType"
+                        }
+                    }
+                }
+            }
+        },
+        "/transactions": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the created transaction.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Transactions"
+                ],
+                "summary": "Create a new transaction between two clients",
+                "parameters": [
+                    {
+                        "description": "Datos de la transaction",
+                        "name": "performTransactionDto",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clientdto.PerformTransactionDto"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/clientdto.TransactionDto"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/app_errors.ErrorMessageJsonType"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/app_errors.ErrorJsonType"
+                        }
+                    }
+                }
+            }
+        },
+        "/transactions/{account_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the paginated transactions.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Transactions"
+                ],
+                "summary": "Gets the transactions of a client",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "client id",
+                        "name": "account_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "The number of items to retrieve on one request",
+                        "name": "count",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "The selected page for the paginated transactions",
+                        "name": "page",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved transactions",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.TransactionPagination"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/app_errors.ErrorMessageJsonType"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/app_errors.ErrorJsonType"
                         }
                     }
                 }
@@ -288,6 +458,25 @@
                     "type": "string"
                 },
                 "token_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "app_errors.ErrorJsonType": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "app_errors.ErrorMessageJsonType": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "message": {
                     "type": "string"
                 }
             }
@@ -333,6 +522,99 @@
                     "type": "string"
                 },
                 "user": {
+                    "type": "string"
+                }
+            }
+        },
+        "clientdto.ClientResponse": {
+            "type": "object",
+            "required": [
+                "address",
+                "city",
+                "created_date",
+                "date_of_birth",
+                "email",
+                "id",
+                "identification",
+                "name",
+                "nationality",
+                "province",
+                "sex",
+                "surname1",
+                "telephone",
+                "updated_date",
+                "zip_code"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "city": {
+                    "type": "string"
+                },
+                "created_date": {
+                    "description": "ISO 8601 date (YYYY-MM-DD HH:mm:ss)",
+                    "type": "string"
+                },
+                "date_of_birth": {
+                    "description": "ISO 8601 date (YYYY-MM-DD)",
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "identification": {
+                    "description": "e.g., passport, national ID",
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "nationality": {
+                    "description": "e.g., ISO 3166-1 alpha-2 code",
+                    "type": "string"
+                },
+                "otp": {
+                    "type": "string"
+                },
+                "province": {
+                    "type": "string"
+                },
+                "sex": {
+                    "description": "M(ale), F(emale)",
+                    "type": "string",
+                    "enum": [
+                        "M",
+                        "F"
+                    ]
+                },
+                "state": {
+                    "description": "Optional, depending on country",
+                    "type": "string"
+                },
+                "surname1": {
+                    "type": "string"
+                },
+                "surname2": {
+                    "description": "Optional, as not all have second surname",
+                    "type": "string"
+                },
+                "tax_id": {
+                    "description": "e.g., SSN, TIN",
+                    "type": "string"
+                },
+                "telephone": {
+                    "description": "Basic phone validation can be added",
+                    "type": "string"
+                },
+                "updated_date": {
+                    "description": "ISO 8601 date (YYYY-MM-DD HH:mm:ss)",
+                    "type": "string"
+                },
+                "zip_code": {
                     "type": "string"
                 }
             }
@@ -437,6 +719,73 @@
                 },
                 "zip_code": {
                     "type": "string"
+                }
+            }
+        },
+        "clientdto.PerformTransactionDto": {
+            "type": "object",
+            "properties": {
+                "account_id": {
+                    "type": "integer"
+                },
+                "amount": {
+                    "type": "number"
+                },
+                "to_account_number": {
+                    "description": "For transfers",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "ADD, WITHDRAWAL, TRANSFER",
+                    "type": "string"
+                }
+            }
+        },
+        "clientdto.TransactionDto": {
+            "type": "object",
+            "properties": {
+                "account_id": {
+                    "type": "integer"
+                },
+                "amount": {
+                    "type": "number"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "to_account_number": {
+                    "description": "For transfers",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "ADD, WITHDRAWAL, TRANSFER",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.TransactionPagination": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/clientdto.TransactionDto"
+                    }
+                },
+                "last_page": {
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
                 }
             }
         }

@@ -19,6 +19,18 @@ definitions:
       token_type:
         type: string
     type: object
+  app_errors.ErrorJsonType:
+    properties:
+      error:
+        type: string
+    type: object
+  app_errors.ErrorMessageJsonType:
+    properties:
+      error:
+        type: string
+      message:
+        type: string
+    type: object
   clientdto.AccountDto:
     properties:
       account_number:
@@ -49,6 +61,76 @@ definitions:
     required:
     - password
     - user
+    type: object
+  clientdto.ClientResponse:
+    properties:
+      address:
+        type: string
+      city:
+        type: string
+      created_date:
+        description: ISO 8601 date (YYYY-MM-DD HH:mm:ss)
+        type: string
+      date_of_birth:
+        description: ISO 8601 date (YYYY-MM-DD)
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      identification:
+        description: e.g., passport, national ID
+        type: string
+      name:
+        type: string
+      nationality:
+        description: e.g., ISO 3166-1 alpha-2 code
+        type: string
+      otp:
+        type: string
+      province:
+        type: string
+      sex:
+        description: M(ale), F(emale)
+        enum:
+        - M
+        - F
+        type: string
+      state:
+        description: Optional, depending on country
+        type: string
+      surname1:
+        type: string
+      surname2:
+        description: Optional, as not all have second surname
+        type: string
+      tax_id:
+        description: e.g., SSN, TIN
+        type: string
+      telephone:
+        description: Basic phone validation can be added
+        type: string
+      updated_date:
+        description: ISO 8601 date (YYYY-MM-DD HH:mm:ss)
+        type: string
+      zip_code:
+        type: string
+    required:
+    - address
+    - city
+    - created_date
+    - date_of_birth
+    - email
+    - id
+    - identification
+    - name
+    - nationality
+    - province
+    - sex
+    - surname1
+    - telephone
+    - updated_date
+    - zip_code
     type: object
   clientdto.CompleteClientRegistrationBankAccountRequest:
     properties:
@@ -125,6 +207,51 @@ definitions:
     - telephone
     - zip_code
     type: object
+  clientdto.PerformTransactionDto:
+    properties:
+      account_id:
+        type: integer
+      amount:
+        type: number
+      to_account_number:
+        description: For transfers
+        type: string
+      type:
+        description: ADD, WITHDRAWAL, TRANSFER
+        type: string
+    type: object
+  clientdto.TransactionDto:
+    properties:
+      account_id:
+        type: integer
+      amount:
+        type: number
+      created_at:
+        type: string
+      id:
+        type: integer
+      to_account_number:
+        description: For transfers
+        type: string
+      type:
+        description: ADD, WITHDRAWAL, TRANSFER
+        type: string
+      updated_at:
+        type: string
+    type: object
+  handlers.TransactionPagination:
+    properties:
+      count:
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/clientdto.TransactionDto'
+        type: array
+      last_page:
+        type: integer
+      page:
+        type: integer
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -166,6 +293,8 @@ paths:
             additionalProperties:
               type: string
             type: object
+      security:
+      - BearerAuth: []
       summary: Creates a new account
       tags:
       - Accounts
@@ -285,19 +414,125 @@ paths:
       - application/json
       responses:
         "201":
-          description: Cliente creado exitosamente
+          description: Created
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/clientdto.ClientResponse'
         "400":
-          description: Solicitud inválida
+          description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Crea un nuevo cliente
+            $ref: '#/definitions/app_errors.ErrorMessageJsonType'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/app_errors.ErrorJsonType'
+      summary: Creates a new client
       tags:
       - Clients
+  /clients/{identification}:
+    get:
+      consumes:
+      - application/json
+      description: Returns the bank client.
+      parameters:
+      - description: Identification of the client with format 00000000X
+        in: path
+        name: identification
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/clientdto.ClientResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app_errors.ErrorMessageJsonType'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/app_errors.ErrorJsonType'
+      security:
+      - BearerAuth: []
+      summary: Gets a new client by its identification -Spanish National Document
+        Identity-
+      tags:
+      - Clients
+  /transactions:
+    post:
+      consumes:
+      - application/json
+      description: Returns the created transaction.
+      parameters:
+      - description: Datos de la transaction
+        in: body
+        name: performTransactionDto
+        required: true
+        schema:
+          $ref: '#/definitions/clientdto.PerformTransactionDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clientdto.TransactionDto'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app_errors.ErrorMessageJsonType'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/app_errors.ErrorJsonType'
+      security:
+      - BearerAuth: []
+      summary: Create a new transaction between two clients
+      tags:
+      - Transactions
+  /transactions/{account_id}:
+    get:
+      consumes:
+      - application/json
+      description: Returns the paginated transactions.
+      parameters:
+      - description: client id
+        in: path
+        name: account_id
+        required: true
+        type: integer
+      - description: The number of items to retrieve on one request
+        in: query
+        name: count
+        required: true
+        type: integer
+      - description: The selected page for the paginated transactions
+        in: query
+        name: page
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved transactions
+          schema:
+            $ref: '#/definitions/handlers.TransactionPagination'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/app_errors.ErrorMessageJsonType'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/app_errors.ErrorJsonType'
+      security:
+      - BearerAuth: []
+      summary: Gets the transactions of a client
+      tags:
+      - Transactions
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.

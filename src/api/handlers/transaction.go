@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	dto "src/api/dto"
+	pagination "src/domain/pagination"
 	trasnactionentity "src/domain/transaction"
 	mappers "src/mappers"
 	repositories "src/repositories"
@@ -13,6 +14,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+type TransactionPagination = pagination.Pagination[dto.TransactionDto]
 
 type TransactionHandler interface {
 	PerformTransaction(c *gin.Context)
@@ -24,7 +27,17 @@ type ITransactionHandler struct {
 	AccountRepository     repositories.AccountRepository
 }
 
-// POST
+// @Summary Create a new transaction between two clients
+// @Description Returns the created transaction.
+// @Accept json
+// @Produce json
+// @Param performTransactionDto body dto.PerformTransactionDto true "Datos de la transaction"
+// @Success 200 {object} dto.TransactionDto ""
+// @Failure 400 {object} app_errors.ErrorMessageJsonType ""
+// @Failure 404 {object} app_errors.ErrorJsonType ""
+// @Router /transactions [post]
+// @security BearerAuth
+// @tags Transactions
 func (h *ITransactionHandler) PerformTransaction(c *gin.Context) {
 	fmt.Println("Entering PerformTransaction Endpoint")
 	performTransactionDtoCtx, exists := c.Get("perform_transaction_dto")
@@ -123,6 +136,19 @@ func (h *ITransactionHandler) PerformTransaction(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"transaction": transactionDto})
 }
 
+// @Summary Gets the transactions of a client
+// @Description Returns the paginated transactions.
+// @Accept json
+// @Produce json
+// @Param account_id path int true "client id"
+// @Param count query int true "The number of items to retrieve on one request"
+// @Param page query int true "The selected page for the paginated transactions"
+// @Success 200 {object} TransactionPagination "Successfully retrieved transactions"
+// @Failure 400 {object} app_errors.ErrorMessageJsonType ""
+// @Failure 404 {object} app_errors.ErrorJsonType ""
+// @Router /transactions/{account_id} [get]
+// @security BearerAuth
+// @tags Transactions
 func (h *ITransactionHandler) GetTransactions(c *gin.Context) {
 	accountId := c.Param("account_id")
 	countStr := c.Query("count")

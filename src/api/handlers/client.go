@@ -22,13 +22,14 @@ type IClientHandler struct {
 	ClientService                services.ClientService
 }
 
-// @Summary Crea un nuevo cliente
+// @Summary Creates a new client
 // @Description Recibe los datos de un cliente y lo registra en el sistema.
 // @Accept json
 // @Produce json
 // @Param client body clientdto.CreateClientRequest true "Datos del cliente para crear"
-// @Success 201 {object} map[string]interface{} "Cliente creado exitosamente"
-// @Failure 400 {object} map[string]string "Solicitud inválida"
+// @Success 201 {object} clientdto.ClientResponse ""
+// @Failure 400 {object} app_errors.ErrorMessageJsonType ""
+// @Failure 404 {object} app_errors.ErrorJsonType ""
 // @Router /clients [post]
 // @tags Clients
 func (h *IClientHandler) CreateClient(c *gin.Context) {
@@ -50,14 +51,20 @@ func (h *IClientHandler) CreateClient(c *gin.Context) {
 	})
 }
 
+// @Summary Gets a new client by its identification -Spanish National Document Identity-
+// @Description Returns the bank client.
+// @Accept json
+// @Produce json
+// @Param identification path string true "Identification of the client with format 00000000X"
+// @Success 201 {object} clientdto.ClientResponse ""
+// @Failure 400 {object} app_errors.ErrorMessageJsonType ""
+// @Failure 404 {object} app_errors.ErrorJsonType ""
+// @Router /clients/{identification} [get]
+// @security BearerAuth
+// @tags Clients
 func (h *IClientHandler) GetClientByIdentification(c *gin.Context) {
 	identification := c.Param("identification")
-	
-	// validation with jwt
-
-	//
-
-	clientResponse, err := h.ClientRepository.FetchClientByIdentification(context.Background(),identification)
+	clientResponse, err := h.ClientRepository.FetchClientByIdentification(context.Background(), identification)
 	if err != nil {
 		fmt.Println("Error ", err.Error())
 		err.JsonError(c)
