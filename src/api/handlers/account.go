@@ -85,6 +85,7 @@ func (h *IAccountHandler) FetchAccounts(c *gin.Context) {
 // @Failure 400 {object} map[string]string "Bad Request - Invalid input or client ID"
 // @Failure 500 {object} map[string]string "Internal Server Error"
 // @Router /accounts [post]
+// @security BearerAuth
 // @tags Accounts
 func (h *IAccountHandler) CreateAccount(c *gin.Context) {
 	var createAccountReq dto.CreateAccountRequest
