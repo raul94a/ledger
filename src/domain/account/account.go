@@ -14,6 +14,10 @@ type AccountEntity struct {
     UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }
 
+func (AccountEntity) TableName() string{
+    return "accounts"
+}
+
 
 func ScanAccountEntity(r *sql.Rows, account *AccountEntity) error {
     return r.Scan(

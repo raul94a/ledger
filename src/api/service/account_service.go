@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	dto "src/api/dto"
 	accountentity "src/domain/account"
 	cliententity "src/domain/client"
@@ -10,11 +9,13 @@ import (
 	"src/mappers"
 	"src/repositories"
 	"src/utils"
+
+	"gorm.io/gorm"
 )
 
 type AccountService interface {
 	CreateAccount(clientId int) (dto.AccountDto, app_errors.AppError)
-	CreateAccountTx(context context.Context, tx *sql.Tx, clientId int) (dto.AccountDto, app_errors.AppError)
+	CreateAccountTx(context context.Context, tx *gorm.DB, clientId int) (dto.AccountDto, app_errors.AppError)
 	CompleteClientRegistrationBankAccount(
 		req dto.CompleteClientRegistrationBankAccountRequest,
 		clientEntity cliententity.ClientEntity,
@@ -71,7 +72,7 @@ func (h *accountService) CreateAccount(clientId int) (dto.AccountDto, app_errors
 
 }
 
-func (h *accountService) CreateAccountTx(context context.Context, tx *sql.Tx, clientId int) (dto.AccountDto, app_errors.AppError) {
+func (h *accountService) CreateAccountTx(context context.Context, tx *gorm.DB, clientId int) (dto.AccountDto, app_errors.AppError) {
 	const spainCode string = "ES"
 	const bankDigits string = "0182"
 	const branchDigits string = "0600"

@@ -26,7 +26,9 @@ type ClientEntity struct {
     UpdatedAt     time.Time      `db:"updated_at" json:"updated_at"`
     KcUserId      sql.NullInt64  `db:"kc_user_id"`
 }
-
+func (ClientEntity) TableName() string {
+	return "clients"
+}
 func ScanClientEntity(r *sql.Rows, client *ClientEntity) error {
     return r.Scan(
 			&client.ID,

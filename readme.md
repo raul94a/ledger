@@ -109,3 +109,13 @@ swag init
 ```
 
 The project is configured to launch the Swagger in /apidoc/swagger/index.html
+
+
+# Gorm - The Go ORM
+
+This project is currently using the gorm postgres driver.
+
+```sh
+go get -u gorm.io/gorm
+go get -u gorm.io/driver/postgres
+```
