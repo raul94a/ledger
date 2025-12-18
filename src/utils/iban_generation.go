@@ -135,20 +135,16 @@ func (i *IbanHandler) numericBban(bbanCountry string) string {
 //      values are concatenated. Along with the placeholder (00), FOR
 //      this case the value is BBBBGGGGCCAAAAAAAAAA142800
 func (i *IbanHandler) mod_97_10(iban string) (string, error) {
-	// Calculate MOD-97-10
-	const chunkSize = 9
+
+	// set the remainder to 0
 	remainder := 0
-	for i := 0; i < len(iban); i += chunkSize {
-		end := i + chunkSize
-		if end > len(iban) {
-			end = len(iban)
+
+	for _,char := range iban {
+		if char < '0' || char > '9'{
+			return "", fmt.Errorf("invalid character %c",char)
 		}
-		chunk := strconv.Itoa(remainder) + iban[i:end]
-		num, err := strconv.Atoi(chunk)
-		if err != nil {
-			return "", fmt.Errorf("error converting chunk to integer: %v", err)
-		}
-		remainder = num % 97
+
+		remainder = (remainder * 10 + int(char - '0')) % 97
 	}
 
 	// Calculate IBAN check digits
